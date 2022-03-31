@@ -1,25 +1,21 @@
 '''
-***********************************************
-
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 This'll be where the page layout and running of the app is laid out
 
 UILM.Page will contain a property called state that's a JSON which gets passed to the frontend on every change
 
 Updating that in the frontend will in turn render the new page
 
-***********************************************
-
 THIS IS JUST FOR EXAMPLE - every aspect is up in the air rn
 
-*******************************
-
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 import UILM  # "UI elements"
-from ./csdm-py import demand_model, ingress, viz
+from ./csdmpy import demand_model, ingress, viz
 
 def load_data(files):
-    df = ingress(files)
+    df = ingress.load(files)
     page.remove_container(id='upload')
-
+    return df
 
 def run_model(dfs):
     results = demand_model(dfs)
