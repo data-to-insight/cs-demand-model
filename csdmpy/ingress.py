@@ -9,8 +9,12 @@ from io import BytesIO
 
 MAX_YEARS_OF_DATA = 5
 
-table_headers = {'Header': ['a', 'b', 'c', 'CHILD'],
-                 'Episodes': ['x', 'CHILD']}
+table_headers = {
+    'Episodes':
+        'CHILD,DECOM,RNE,LS,CIN,PLACE,PLACE_PROVIDER,DEC,REC,REASON_PLACE_CHANGE,HOME_POST,PL_POST'.split(','),
+    'Header':
+        'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
+}
 
 files_list = [{'description': f"{i}_ago",
                'fileText': file_text}
@@ -30,7 +34,7 @@ def the_ingress_procedure(files_list):
         files_list = files_list.to_py()
         remaining_files = files_list.copy()
 
-    yearly_dfs = []
+    yearly_dfs = {}
     empty_years = []
     for i in range(MAX_YEARS_OF_DATA):
         label = f"{i}_ago"
@@ -40,7 +44,7 @@ def the_ingress_procedure(files_list):
         if not matching_files:
             empty_years.append(label)
 
-        year_dfs = identify_tables(matching_files)
+        year_dfs = identify_tables(matching_files, table_headers)
 
         merged_df = combine_files_for_year(year_dfs, i)
 
@@ -55,10 +59,12 @@ def the_ingress_procedure(files_list):
         raise UploadError(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
 
     all_the_903 = pd.concat(yearly_dfs)
-
+    all_the_903 = read_combined_903(all_the_903)
+    all_the_903['placement_type'] = all_the_903['PLACE'].apply(categorize_placement)
+    
     date_df = get_daily_data(all_the_903)
 
-    return combined_903
+    return date_df 
 
 def get_matching_uploads(files_list, label, return_remainder=False):
     matching_files = []
@@ -98,7 +104,7 @@ def identify_tables(matching_files, table_headers):
     return year_dfs
 
 
-def combine_files_for_year(the_years_files):
+def combine_files_for_year(the_years_files, years_ago):
     print(the_years_files)
     try:
         header = the_years_files['Header']
