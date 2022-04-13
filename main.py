@@ -1,7 +1,27 @@
 from csdmpy import ingress, model
 import pandas as pd
 
-df = ingress.read_combined_903()
+test_903_dir = os.path.join(os.path.dirname(__file__), 'fake903_5yrs')
+year_list = [2017, 2018, 2019, 2020, 2021]
+tables_needed = ('header', 'episodes')
+table_headers = {
+    'Episodes':
+        'CHILD,DECOM,RNE,LS,CIN,PLACE,PLACE_PROVIDER,DEC,REC,REASON_PLACE_CHANGE,HOME_POST,PL_POST'.split(','),
+    'Header':
+        'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
+}
+files_list = []
+for year in year_list:
+    year_dir = os.path.join(test_903_dir, str(year))
+    label = str(max(year_list) - year) + "_ago"
+    for table_name in tables_needed:
+        table_path = os.path.join(year_dir, table_name + '.csv')
+        with open(table_path, 'r') as file:
+            file_bytes = file.read().encode('utf-8')
+        files_list.append({'description': label,
+                           'fileText': file_bytes})
+
+df = ingress.the_ingress_procedure(files_list)
 
 print(df.columns)
 
