@@ -18,22 +18,27 @@ files_list = [{'description': f"{i}_ago",
                     for file_text in (b"a,b,c,CHILD\n0,0,1,1\n1,,0,",
                                       b"x,CHILD\nX,\nX,1")]
 
-print(files_list)
 
 class UploadError(Exception):
     pass
 
 def the_ingress_procedure(files_list):
-    remaining_files = files_list.copy()
+    print(type(files_list))
+    try:
+        remaining_files = files_list.copy()
+    except AttributeError:
+        files_list = files_list.to_py()
+        remaining_files = files_list.copy()
+
     yearly_dfs = []
     empty_years = []
     for i in range(MAX_YEARS_OF_DATA):
         label = f"{i}_ago"
 
-        matching_files, remaining_files = get_matching_uploads(remaining_files, label)
+        matching_files, remaining_files = get_matching_uploads(remaining_files, label, return_remainder=True)
 
         if not matching_files:
-            empty_years.append()
+            empty_years.append(label)
 
         year_dfs = identify_tables(matching_files)
 
@@ -55,15 +60,20 @@ def the_ingress_procedure(files_list):
 
     return combined_903
 
-def get_matching_uploads(remaining_files, label):
+def get_matching_uploads(files_list, label, return_remainder=False):
     matching_files = []
-    for file in remaining_files:
+    remaining_files = []
+    for file in files_list:
         if file['description'] == label:
             matching_files.append(file)
-            remaining_files.remove(file)
-    return matching_files, remaining_files
+        else:
+            remaining_files.append(file)
+    if return_remainder:
+        return matching_files, remaining_files
+    else:
+        return matching_files
 
-def identify_tables(matching_files):
+def identify_tables(matching_files, table_headers):
     year_dfs = {}
     for file in matching_files:
         try:
@@ -73,6 +83,7 @@ def identify_tables(matching_files):
                               f"file(s) in Notepad, then 'Saving As...' with the UTF-8 encoding")
         # TODO: figure out what we're expecting to be excepting here
         except:
+            label = file['description']
             raise UploadError(f"Failed to read file uploaded under {label} - ensure all files are valid CSVs!")
 
         for table_name, headers in table_headers.items():  # dict - {table_name: set_of_columns for i in whatever}
@@ -87,7 +98,7 @@ def identify_tables(matching_files):
     return year_dfs
 
 
-def combine_files_for_year(the_years_files, years_ago):
+def combine_files_for_year(the_years_files):
     print(the_years_files)
     try:
         header = the_years_files['Header']
@@ -145,7 +156,7 @@ def categorize_placement(code):
         return 'Outside'
 
 
-def get_daily_data(df):
+def get_daily_data(df, ):
     df = df.copy()
     # Create a dataframe with an entry for every child on every day between DECOM (inclusive) and DEC (exclusive)
     df['DEC_filled'] = (df['DEC'] - pd.Timedelta(days=1)).fillna(df['DEC'].max())
