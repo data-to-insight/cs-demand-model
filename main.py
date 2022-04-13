@@ -1,7 +1,8 @@
 from csdmpy import ingress, model
 import pandas as pd
+import os
 
-test_903_dir = os.path.join(os.path.dirname(__file__), 'fake903_5yrs')
+test_903_dir = os.path.join(os.path.dirname(__file__), 'csdmpy', 'tests', 'fake903_5yrs')
 year_list = [2017, 2018, 2019, 2020, 2021]
 tables_needed = ('header', 'episodes')
 table_headers = {
@@ -24,8 +25,6 @@ for year in year_list:
 df = ingress.the_ingress_procedure(files_list)
 
 print(df.columns)
-
-df['placement_type'] = df['PLACE'].apply(ingress.categorize_placement)
 
 date_df = ingress.get_daily_data(df)
 
