@@ -2,7 +2,7 @@
 name = "csdmpy"
 version = "0.1.0"
 description = "Python port of Social Finance's children's social care demand model"
-authors = ["dezog"]
+authors = ["dezog", "tab1tha"]
 
 [tool.poetry.dependencies]
 numpy = "1.22.3"
