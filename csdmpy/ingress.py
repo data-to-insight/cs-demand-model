@@ -16,13 +16,6 @@ table_headers = {
         'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
 }
 
-files_list = [{'description': f"{i}_ago",
-               'fileText': file_text}
-                    for i in range(MAX_YEARS_OF_DATA - 1)
-                    for file_text in (b"a,b,c,CHILD\n0,0,1,1\n1,,0,",
-                                      b"x,CHILD\nX,\nX,1")]
-
-
 class UploadError(Exception):
     pass
 
@@ -61,10 +54,23 @@ def the_ingress_procedure(files_list):
     all_the_903 = pd.concat(yearly_dfs)
     all_the_903 = read_combined_903(all_the_903)
     all_the_903['placement_type'] = all_the_903['PLACE'].apply(categorize_placement)
-    
-    date_df = get_daily_data(all_the_903)
+    all_the_903.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
 
-    return date_df 
+    all_the_903['placement_type_after'] = (all_the_903
+                                           .groupby('CHILD')
+                                           ['placement_type']
+                                           .shift(-1)
+                                           .fillna('Not in Care'))
+
+    all_the_903['placement_type_before'] = (all_the_903
+                                            .groupby('CHILD')
+                                            ['placement_type']
+                                            .shift(1)
+                                            .fillna('Not in care'))
+
+    # date_df = get_daily_data(all_the_903)
+
+    return all_the_903
 
 def get_matching_uploads(files_list, label, return_remainder=False):
     matching_files = []
@@ -159,7 +165,8 @@ def categorize_placement(code):
     elif code in ['H5', 'P2']:
         return 'Supported'
     else:
-        return 'Outside'
+        return 'Other'
+
 
 
 def get_daily_data(df, ):
