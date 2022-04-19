@@ -1,4 +1,4 @@
-from csdmpy.super_model import work_out_transition_rates, work_out_ingress_rates
+from csdmpy.super_model import work_out_transition_rates, work_out_ingress_rates, make_pops_ts
 import pandas as pd
 import numpy as np
 import os
@@ -31,16 +31,31 @@ print(df.columns)
 cat_list = list(df['placement_type'].unique()) + ['Not in care']
 
 print(cat_list)
-n_trans, trans_rates = work_out_transition_rates(df, cat='Foster', start_date='01/01/2019', end_date='01/01/2020',
-                                  cat_list=cat_list)
 
+T = {}
+for cat in cat_list:
+    if cat == 'Not in care':
+        continue
+    n_trans, trans_rates = work_out_transition_rates(df, cat=cat,
+                                                 start_date='01/01/2019', end_date='01/01/2020',
+                                                 cat_list=cat_list)
+    T[cat] = trans_rates
+T = pd.DataFrame(T)
 
-print(n_trans.to_string())
-print(trans_rates.to_string())
-pass
+print('BIG T')
+print(T.to_string())
 
-entrants = work_out_ingress_rates(df, cat='Foster', cat_list=cat_list, start_date='01/01/2019', end_date='01/01/2020',)
+entrants = {}
+for cat in cat_list:
+    if cat == 'Not in care':
+        continue
+    entrants[cat] = work_out_daily_entrants(df, cat=cat, cat_list=cat_list, start_date='01/01/2019', end_date='01/01/2020',)
+entrants = pd.DataFrame(entrants)
 
+print('entrants - - - -')
 print(entrants)
-print(':-)')
-pass
+
+print('pops - - - -')
+print(make_pops_ts(df, '2019-01-01', '2023-01-01', step_size='3m')[0].to_string())
+
+print(df[['DECOM', 'DEC']].min(), df[['DECOM', 'DEC']].max())

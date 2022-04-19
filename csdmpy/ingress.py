@@ -6,15 +6,8 @@ import pandas as pd
 import numpy as np
 import os
 from io import BytesIO
+from .config import MAX_YEARS_OF_DATA, NOT_IN_CARE, table_headers
 
-MAX_YEARS_OF_DATA = 5
-
-table_headers = {
-    'Episodes':
-        'CHILD,DECOM,RNE,LS,CIN,PLACE,PLACE_PROVIDER,DEC,REC,REASON_PLACE_CHANGE,HOME_POST,PL_POST'.split(','),
-    'Header':
-        'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
-}
 
 class UploadError(Exception):
     pass
@@ -51,26 +44,37 @@ def the_ingress_procedure(files_list):
         remaining_descriptions = {file['description'] for file in remaining_files}
         raise UploadError(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
 
-    all_the_903 = pd.concat(yearly_dfs)
-    all_the_903 = read_combined_903(all_the_903)
-    all_the_903['placement_type'] = all_the_903['PLACE'].apply(categorize_placement)
-    all_the_903.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
+    all_903 = pd.concat(yearly_dfs)
+    all_903 = read_combined_903(all_903)
+    all_903['placement_type'] = all_903['PLACE'].apply(categorize_placement)
+    all_903.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
 
-    all_the_903['placement_type_after'] = (all_the_903
-                                           .groupby('CHILD')
+    all_903['placement_type_after'] = (all_903
+                                       .groupby('CHILD')
                                            ['placement_type']
-                                           .shift(-1)
-                                           .fillna('Not in Care'))
+                                       .shift(-1)
+                                       .fillna(NOT_IN_CARE))
+    out_after_mask = (
+        (all_903['CHILD'] == all_903['CHILD'].shift(-1))
+        & (all_903['DEC'] != all_903['DECOM'].shift(-1))
+    )
+    all_903.loc[out_after_mask, 'placement_type_after'] = NOT_IN_CARE
 
-    all_the_903['placement_type_before'] = (all_the_903
-                                            .groupby('CHILD')
+    all_903['placement_type_before'] = (all_903
+                                        .groupby('CHILD')
                                             ['placement_type']
-                                            .shift(1)
-                                            .fillna('Not in care'))
+                                        .shift(1)
+                                        .fillna(NOT_IN_CARE))
+    out_before_mask = (
+        (all_903['CHILD'] == all_903['CHILD'].shift(1))
+        & (all_903['DECOM'] != all_903['DEC'].shift(1))
+    )
+    all_903.loc[out_before_mask, 'placement_type_before'] = NOT_IN_CARE
 
-    # date_df = get_daily_data(all_the_903)
+    # date_df = get_daily_data(all_903)
 
-    return all_the_903
+    return all_903
+
 
 def get_matching_uploads(files_list, label, return_remainder=False):
     matching_files = []
@@ -84,6 +88,7 @@ def get_matching_uploads(files_list, label, return_remainder=False):
         return matching_files, remaining_files
     else:
         return matching_files
+
 
 def identify_tables(matching_files, table_headers):
     year_dfs = {}
