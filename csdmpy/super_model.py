@@ -4,17 +4,15 @@ from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_ag
 from csdmpy.config import age_brackets as bin_defs
 
 
-
 def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
     date_index = make_date_index(end_date, horizon_date, step).index
 
-    print('DATES???')
     future_pop = pd.DataFrame(columns=historic_pop.columns,
                               index=date_index)
-    print('* * * * * * HISTORY OF FAILURE')
+    print('* * * * * * HISTORIC POPS')
     print(historic_pop.to_string())
-    print('* * * * * * OUR EMPTY FUTURE')
+    print('* * * * * * FUTURE POPS')
     print(future_pop.to_string())
     # set up model:
     transitions_dict = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
@@ -24,15 +22,19 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
         print(str(bracket) + ':', t_mat, sep='\n')
 
     entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
-    print(f'* * ****%%%ENTRANTS:\n{entrance.to_string()}')
+    print(f'* * ****%%%ENTRANTS:\n')
+    for bracket, entra in entrance.items():
+        print(str(bracket) + ':', entra, sep='\n')
+
     next_pop = historic_pop.loc[historic_pop.index.max()].copy()
     entrants_dict = 0
-    print(f'* * >>>> * * INIT, POP?\n{next_pop.to_string()}')
+    print(f'* * >>>> * * INITIAL POP\n{next_pop.to_string()}')
     for date in future_pop.index:
         print(f"****DATE:{date}")
         next_pop = apply_ageing(next_pop)
         next_pop = apply_transitions(next_pop, transitions_dict)
-        next_pop = apply_entrants(next_pop, entrants_dict)
+        for ab, pt in next_pop.index:
+            next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
         future_pop.loc[date] = next_pop
 
     return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
@@ -96,11 +98,10 @@ def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
         entrants_mat[age_bin] = {}
         placement_types = bin_defs[age_bin]
         bin_min, bin_max = split_age_bin(age_bin)
-        this_bin_df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
+        this_bin_df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)].copy()
         for placement_type in placement_types:
-            entry_rates = get_daily_entrants(this_bin_df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
-                            not_in_care="Not in care",
-                            cat_col="placement_type", prev_col="placement_type_before")
+            entry_rates = get_daily_entrants(this_bin_df, cat=placement_type, cat_list=placement_types,
+                                             start_date=start_date, end_date=end_date)
             entrants_mat[age_bin][placement_type] = entry_rates
     return entrants_mat
 
@@ -198,12 +199,10 @@ def get_daily_entrants(df, cat, cat_list, start_date=None, end_date=None,
     # remove episodes outside the date range and truncate episodes extending beyond it
     df = truncate(df, start_date, end_date, s_col, e_col)
 
-    df = df[
-        (df[prev_col] == not_in_care)
-        & (df[cat_col] == cat)
-    ]
+    entrants = ((df[prev_col] == not_in_care)
+        & (df[cat_col] == cat)).sum()
 
     total_days = (end_date - start_date).days
-    entrants = df.groupby([prev_col]).size() / total_days
+    entrants = len(df) / total_days
 
     return entrants
