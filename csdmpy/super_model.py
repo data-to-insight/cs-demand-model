@@ -11,6 +11,47 @@ bin_defs = {
 }
 
 
+def the_model_itself(df, start_date, end_date, horizon_date, step):
+    historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
+    future_pop = pd.DataFrame(columns=historic_pop.columns,
+                              index=make_date_index(end_date, horizon_date, step))
+    print(historic_pop.to_string())
+    # set up model:
+    transitions_dict = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
+
+    print('* * * * * Transition probabilities for each bin\n')
+    for bracket, t_mat in transitions_dict.items():
+        print(str(bracket) + ':', t_mat, sep='\n')
+
+    entrants_dict = {age_bin: {placement: 1.0
+                               for placement in bin_defs[age_bin]}
+                     for age_bin in bin_defs}  # daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
+
+    next_pop = historic_pop.loc[historic_pop.index.max()]
+
+    for date in future_pop.index:
+        next_pop = apply_ageing(next_pop)
+        next_pop = apply_transitions(next_pop, transitions_dict)
+        next_pop = apply_entrants(next_pop, entrants_dict)
+        future_pop.loc[date] = next_pop
+
+    return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
+
+
+def apply_ageing(df, step_size=None):
+    return df
+
+
+def apply_transitions(df, transitions_dict):
+    for age_bin, transitions in transitions_dict.items():
+        pass
+    return df
+
+
+def apply_entrants(df, entrants_dict):
+    return df
+
+
 def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
     trans_mats = {}
     for age_bin, placement_types in bin_defs.items():
@@ -18,7 +59,6 @@ def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
             trans_mats[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
         else:
             bin_min, bin_max = age_bin
-            #transition_matrix = pd.DataFrame(index=placement_types, columns=placement_types)
             _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
             _df = df[df['placement_type'].isin(placement_types)]
             trans_rates = get_daily_transition_rates(df, cat_list=placement_types, start_date=start_date,
@@ -37,8 +77,9 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
     ts_info = make_date_index(start_date, end_date, step_size)
     pops_ts = pd.Series(data=ts_info.index,
                         index=ts_info.index)
+
     pops_ts = pops_ts.apply(lambda date: get_ongoing(df, date)
-                                         .groupby([cat_col, 'age_bin'])
+                                         .groupby(['age_bin', cat_col])
                                          .size())
     pops_ts = pops_ts.fillna(0)
 

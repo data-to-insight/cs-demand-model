@@ -1,6 +1,6 @@
 from csdmpy.super_model import get_daily_transition_rates, \
     get_daily_entrants, make_populations_ts, \
-    transition_probs_per_bracket, bin_defs
+    transition_probs_per_bracket, bin_defs, the_model_itself
 import pandas as pd
 import numpy as np
 import os
@@ -28,7 +28,7 @@ for year in year_list:
 
 df = ingress.the_ingress_procedure(files_list)
 
-start, end = pd.to_datetime(['2018-01-01', '2020-01-01'])
+start, end, horizon= pd.to_datetime(['2018-01-01', '2020-01-01', '2022-01-01'])
 step_size = '1m'
 transitions_dict = transition_probs_per_bracket(df, bin_defs, start, end)
 
@@ -45,3 +45,5 @@ print('* * * * * Historical populations for each category')
 print(make_populations_ts(df, bin_defs, start, end, step_size=step_size).to_string()) #TODO: fix this function...
 
 print(df[['DECOM', 'DEC']].min(), df[['DECOM', 'DEC']].max())
+
+the_model_itself(df, start, end, horizon, step_size)
