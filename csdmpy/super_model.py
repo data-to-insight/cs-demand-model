@@ -68,7 +68,8 @@ def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
 
 def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
     entrants_mat = {}
-    for age_bin, placement_types in bin_defs.items():
+    for age_bin bin_defs:
+        placement_types = bin_defs[age_bin]
         if len(placement_types) == 1:
             entrants_mat[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
         else:
@@ -79,9 +80,9 @@ def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
                 entry_rates = get_daily_entrants(df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
                                 not_in_care="Not in care",
                                 cat_col="placement_type", prev_col="placement_type_before")
-                entrants_mat[(age_bin, placement_type)] = entry_rates
+                entrants_mat[age_bin][placement_type] = entry_rates
     return entrants_mat
-    
+
 def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_col='placement_type', cat_list=None):
     if cat_list:
         df = df[df[cat_col].isin(cat_list)]
