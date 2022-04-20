@@ -1,10 +1,11 @@
 import pandas as pd
 
-from .utils import truncate, get_ongoing, make_date_index, to_datetime
+from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_age_bin
+from csdmpy.config import age_brackets as bin_defs
 
 
 
-def the_model_itself(df, start_date, end_date, horizon_date, step):
+def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
     date_index = make_date_index(end_date, horizon_date, step).index
 
@@ -22,12 +23,8 @@ def the_model_itself(df, start_date, end_date, horizon_date, step):
     for bracket, t_mat in transitions_dict.items():
         print(str(bracket) + ':', t_mat, sep='\n')
 
-    entrants_dict = {age_bin: {placement: 1.0
-                               for placement in bin_defs[age_bin]}
-                     for age_bin in bin_defs}  # daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
-    new_guys = pd.DataFrame(entrants_dict)
     next_pop = historic_pop.loc[historic_pop.index.max()].copy()
-
+    entrants_dict = 0
     print(f'* * >>>> * * INIT, POP?\n{next_pop.to_string()}')
     for date in future_pop.index:
         print(f"****DATE:{date}")
@@ -50,9 +47,6 @@ def apply_transitions(next_pop, transitions_dict):
 
 
 def apply_entrants(next_pop, entrants_dict):
-    new_guys = pd.DataFrame(entrants_dict)
-    print(new_guys)
-    next_pop = next_pop + new_guys
     return next_pop
 
 
@@ -62,7 +56,7 @@ def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
         if len(placement_types) == 1:
             trans_mats[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
         else:
-            bin_min, bin_max = age_bin
+            bin_min, bin_max = split_age_bin(age_bin)
             _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
             _df = df[df['placement_type'].isin(placement_types)]
             trans_rates = get_daily_transition_rates(df, cat_list=placement_types, start_date=start_date,
@@ -88,6 +82,24 @@ def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
                 entrants_mat[age_bin][placement_type] = entry_rates
     return entrants_mat
 
+def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
+    entrants_mat = {}
+    for age_bin in bin_defs:
+        placement_types = bin_defs[age_bin]
+        if len(placement_types) == 1:
+            entrants_mat[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
+        else:
+            bin_min, bin_max = split_age_bin(age_bin)
+            _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
+            for placement_type in placement_types:
+                _df = df['placement_type']
+                entry_rates = get_daily_entrants(_df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
+                                not_in_care="Not in care",
+                                cat_col="placement_type", prev_col="placement_type_before")
+                entrants_mat[age_bin][placement_type] = entry_rates
+    return entrants_mat
+
+
 def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_col='placement_type', cat_list=None):
     if cat_list:
         df = df[df[cat_col].isin(cat_list)]
@@ -99,11 +111,21 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
     pops_ts = pd.Series(data=ts_info.index,
                         index=ts_info.index)
 
-    pops_ts = pops_ts.apply(lambda date: get_ongoing(df, date)
-                                         .groupby(['age_bin', cat_col])
-                                         .size())
-    pops_ts = pops_ts.fillna(0)
+    pops_ts = pops_ts.apply(lambda date: (get_ongoing(df, date)
+                                          .groupby(['age_bin', cat_col])
+                                          .size()))
 
+    categories = pd.MultiIndex.from_tuples([(age_bin, place)
+                                            for age_bin, place_list in bin_defs.items() for place in place_list])
+
+    discard_cols = set(pops_ts.columns) - set(categories)
+    print('>discarding: ', discard_cols)
+    add_cols = set(categories) - set(pops_ts.columns)
+    print('>adding: ', add_cols)
+    pops_ts = pops_ts.drop(columns=discard_cols)
+    for col in add_cols:
+        pops_ts[col] = 0
+    pops_ts = pops_ts.fillna(0)
     return pops_ts
 
 

@@ -12,11 +12,11 @@ table_headers = {
 }
 
 age_brackets = {
-    (-1, 1): ('Foster', ),
-    (1, 5): ('Foster', ),
-    (5, 10): ('Foster', 'Resi'),
-    (10, 16): ('Foster', 'Resi'),
-    (16, 18): ('Foster', 'Resi', 'Supported'),
+    '-1 to 1': ('Foster', ),
+    '1 to 5': ('Foster', ),
+    '5 to 10': ('Foster', 'Resi'),
+    '10 to 16': ('Foster', 'Resi'),
+    '16 to 18': ('Foster', 'Resi', 'Supported'),
 }
 
 class UploadError(Exception):
