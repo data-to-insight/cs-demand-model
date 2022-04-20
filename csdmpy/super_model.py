@@ -2,20 +2,19 @@ import pandas as pd
 
 from .utils import truncate, get_ongoing, make_date_index, to_datetime
 
-bin_defs = {
-    (-1, 1): ('Foster', ),
-    (1, 5): ('Foster', ),
-    (5, 10): ('Foster', 'Resi'),
-    (10, 16): ('Foster', 'Resi'),
-    (16, 18): ('Foster', 'Resi', 'Supported'),
-}
 
 
 def the_model_itself(df, start_date, end_date, horizon_date, step):
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
+    date_index = make_date_index(end_date, horizon_date, step).index
+
+    print('DATES???')
     future_pop = pd.DataFrame(columns=historic_pop.columns,
-                              index=make_date_index(end_date, horizon_date, step))
+                              index=date_index)
+    print('* * * * * * HISTORY OF FAILURE')
     print(historic_pop.to_string())
+    print('* * * * * * OUR EMPTY FUTURE')
+    print(future_pop.to_string())
     # set up model:
     transitions_dict = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
@@ -26,10 +25,12 @@ def the_model_itself(df, start_date, end_date, horizon_date, step):
     entrants_dict = {age_bin: {placement: 1.0
                                for placement in bin_defs[age_bin]}
                      for age_bin in bin_defs}  # daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
+    new_guys = pd.DataFrame(entrants_dict)
+    next_pop = historic_pop.loc[historic_pop.index.max()].copy()
 
-    next_pop = historic_pop.loc[historic_pop.index.max()]
-
+    print(f'* * >>>> * * INIT, POP?\n{next_pop.to_string()}')
     for date in future_pop.index:
+        print(f"****DATE:{date}")
         next_pop = apply_ageing(next_pop)
         next_pop = apply_transitions(next_pop, transitions_dict)
         next_pop = apply_entrants(next_pop, entrants_dict)
@@ -38,18 +39,21 @@ def the_model_itself(df, start_date, end_date, horizon_date, step):
     return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
 
 
-def apply_ageing(df, step_size=None):
-    return df
+def apply_ageing(next_pop, step_size=None):
+    return next_pop
 
 
-def apply_transitions(df, transitions_dict):
+def apply_transitions(next_pop, transitions_dict):
     for age_bin, transitions in transitions_dict.items():
         pass
-    return df
+    return next_pop
 
 
-def apply_entrants(df, entrants_dict):
-    return df
+def apply_entrants(next_pop, entrants_dict):
+    new_guys = pd.DataFrame(entrants_dict)
+    print(new_guys)
+    next_pop = next_pop + new_guys
+    return next_pop
 
 
 def transition_probs_per_bracket(df, bin_defs, start_date, end_date):

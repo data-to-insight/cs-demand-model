@@ -23,6 +23,7 @@ def to_datetime(dates, date_formats=None):
 
 
 def make_date_index(start_date, end_date, step_size):
+    start_date, end_date = to_datetime([start_date, end_date])
     date_units = {'d': 'days',
                   'w': 'weeks',
                   'm': 'months',
