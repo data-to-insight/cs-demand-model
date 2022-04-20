@@ -49,6 +49,30 @@ def apply_transitions(next_pop, transitions_dict):
 def apply_entrants(next_pop, entrants_dict):
     return next_pop
 
+def ageing_probs_per_bracket(bin_defs, step_size):
+    ageing_mats = {}
+
+    def step_to_days(step_size):
+        """Converts as step_size string to an int number of calendar days. 
+        A month  is approximated as 30 days"""
+        day_units = {'d': 1,
+                    'w': 7,
+                    'm': 30,
+                    'y': 365}
+        count, unit = step_size[:-1], step_size[-1]
+        count = int(count)
+        unit = int(day_units[unit.lower()])
+        days = count*unit
+
+        return days
+
+    for age_bin in bin_defs:      
+        bin_min, bin_max = tuple(int(bound) for bound in bracket.split(' to '))
+        bin_width_days = (bin_max-bin_min)*365
+        step_size_days = step_to_days(step_size)
+        aged_out = step_size_days/bin_width_days
+        ageing_mats[age_bin] = aged_out
+    return ageing_mats
 
 def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
     trans_mats = {}
