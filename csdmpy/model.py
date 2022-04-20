@@ -167,15 +167,15 @@ def run_sample(num_samples, start_date, number_days, buckets, ingress_rates, tra
                 aged_populations[label] += current_popn
             else:
                 age_out_daily_prob = age_out_daily_probs[age_bucket]
-                age_up = np.random.binomial(current_popn, age_out_daily_prob)
-                stay_same = current_popn - age_up
+                #age_up = np.random.binomial(current_popn, age_out_daily_prob)
+                stay_same = current_popn * 0.95#- age_up
 
-                aged_populations[label] += stay_same
+                aged_populations[label] = stay_same + aged_populations[label]
 
                 next_age = next_age_buckets[age_bucket]
                 # We never age out the 16-18 bucket, as these should deplete naturally
                 if next_age is not None:
-                    aged_populations[(name, next_age)] += age_up
+                    aged_populations[(name, next_age)] #+= age_up
 
         # Then transition the population
         for label, population in aged_populations.items():

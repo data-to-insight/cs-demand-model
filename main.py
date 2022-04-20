@@ -39,3 +39,21 @@ print(model.get_transition_matrix_for_date(date_df, pd.Timestamp('2019-01-01'), 
 
 print('ingress rates, 2018-01-1')
 print(model.get_ingress_rates_for_date(date_df, pd.Timestamp('2018-01-01')))
+
+start_date = pd.Timestamp('2019-01-01')
+
+buckets, ingress_rates, transition_matrix, age_out_daily_probs = model.get_initial_data(date_df, start_date=start_date)
+
+transition_matrix = \
+    transition_matrix.fillna(0)
+results = model.run_sample(
+    num_samples=5,
+    start_date=start_date,
+    number_days=360,
+    buckets=buckets,
+    ingress_rates=ingress_rates,
+    transition_matrix=transition_matrix,
+    age_out_daily_probs=age_out_daily_probs,
+)
+
+print(results[0])

@@ -1,4 +1,6 @@
-from csdmpy.super_model import work_out_transition_rates, work_out_ingress_rates, make_pops_ts
+from csdmpy.super_model import get_daily_transition_rates, \
+    get_daily_entrants, make_populations_ts, \
+    transition_probs_per_bracket, bin_defs
 import pandas as pd
 import numpy as np
 import os
@@ -26,36 +28,20 @@ for year in year_list:
 
 df = ingress.the_ingress_procedure(files_list)
 
-print(df.columns)
+start, end = pd.to_datetime(['2018-01-01', '2020-01-01'])
+step_size = '1m'
+transitions_dict = transition_probs_per_bracket(df, bin_defs, start, end)
 
-cat_list = list(df['placement_type'].unique()) + ['Not in care']
+for bracket, cats in bin_defs.items():
+    print(str(bracket) + ':', cats, sep='  ')
 
-print(cat_list)
+print('* * * * * Transition probabilities for each bin\n')
+for bracket, t_mat in transitions_dict.items():
+    print(str(bracket) + ':', t_mat, sep='\n')
 
-T = {}
-for cat in cat_list:
-    if cat == 'Not in care':
-        continue
-    n_trans, trans_rates = work_out_transition_rates(df, cat=cat,
-                                                 start_date='01/01/2019', end_date='01/01/2020',
-                                                 cat_list=cat_list)
-    T[cat] = trans_rates
-T = pd.DataFrame(T)
+print('* * * * * Daily Entrants for each bin')
 
-print('BIG T')
-print(T.to_string())
-
-entrants = {}
-for cat in cat_list:
-    if cat == 'Not in care':
-        continue
-    entrants[cat] = work_out_daily_entrants(df, cat=cat, cat_list=cat_list, start_date='01/01/2019', end_date='01/01/2020',)
-entrants = pd.DataFrame(entrants)
-
-print('entrants - - - -')
-print(entrants)
-
-print('pops - - - -')
-print(make_pops_ts(df, '2019-01-01', '2023-01-01', step_size='3m')[0].to_string())
+print('* * * * * Historical populations for each category')
+print(make_populations_ts(df, bin_defs, start, end, step_size=step_size).to_string()) #TODO: fix this function...
 
 print(df[['DECOM', 'DEC']].min(), df[['DECOM', 'DEC']].max())

@@ -6,11 +6,8 @@ import pandas as pd
 import numpy as np
 import os
 from io import BytesIO
-from .config import MAX_YEARS_OF_DATA, NOT_IN_CARE, table_headers
+from .config import MAX_YEARS_OF_DATA, NOT_IN_CARE, table_headers, age_brackets, UploadError
 
-
-class UploadError(Exception):
-    pass
 
 def the_ingress_procedure(files_list):
     print(type(files_list))
@@ -70,6 +67,8 @@ def the_ingress_procedure(files_list):
         & (all_903['DECOM'] != all_903['DEC'].shift(1))
     )
     all_903.loc[out_before_mask, 'placement_type_before'] = NOT_IN_CARE
+    all_903['age_bin'] = all_903['age'].apply(lambda age: [age_bin for age_bin in age_brackets
+                                                           if age_bin[0] <= age < age_bin[1]][0])
 
     # date_df = get_daily_data(all_903)
 
@@ -128,9 +127,11 @@ def combine_files_for_year(the_years_files, years_ago):
     episodes['DECOM'] = pd.to_datetime(episodes['DECOM'], format='%d/%m/%Y')
     episodes['DEC'] = pd.to_datetime(episodes['DEC'], format='%d/%m/%Y')
 
-    print(episodes.columns, header.columns, sep='\n\n')
+    merged = header.merge(episodes, how='inner', on='CHILD', suffixes=('_header', '_episodes'))
 
-    return header.merge(episodes, how='inner', on='CHILD', suffixes=('_header', '_episodes'))
+    merged['age'] = (merged['DECOM'] - merged['DOB']).dt.days / 365.24
+
+    return merged
 
 
 def read_combined_903(combined):

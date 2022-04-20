@@ -2,35 +2,52 @@ import pandas as pd
 
 from .utils import truncate, get_ongoing, make_date_index, to_datetime
 
+bin_defs = {
+    (-1, 1): ('Foster', ),
+    (1, 5): ('Foster', ),
+    (5, 10): ('Foster', 'Resi'),
+    (10, 16): ('Foster', 'Resi'),
+    (16, 18): ('Foster', 'Resi', 'Supported'),
+}
 
-def make_pops_ts(df, start_date, end_date, step_size='3m', cat_col='placement_type'):
+
+def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
+    trans_mats = {}
+    for age_bin, placement_types in bin_defs.items():
+        if len(placement_types) == 1:
+            trans_mats[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
+        else:
+            bin_min, bin_max = age_bin
+            #transition_matrix = pd.DataFrame(index=placement_types, columns=placement_types)
+            _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
+            _df = df[df['placement_type'].isin(placement_types)]
+            trans_rates = get_daily_transition_rates(df, cat_list=placement_types, start_date=start_date,
+                                                     end_date=end_date)
+            trans_mats[age_bin] = trans_rates
+    return trans_mats
+
+
+def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_col='placement_type', cat_list=None):
+    if cat_list:
+        df = df[df[cat_col].isin(cat_list)]
     # make time series of historical placement
     start_date, end_date = to_datetime([start_date, end_date])
     df = truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC')
 
     ts_info = make_date_index(start_date, end_date, step_size)
     pops_ts = pd.Series(data=ts_info.index,
-                        index=ts_info.index).apply(lambda date: get_ongoing(df, date)
-                                                                .groupby(cat_col)
-                                                                .size())
+                        index=ts_info.index)
+    pops_ts = pops_ts.apply(lambda date: get_ongoing(df, date)
+                                         .groupby([cat_col, 'age_bin'])
+                                         .size())
     pops_ts = pops_ts.fillna(0)
 
-    return pops_ts, ts_info
+    return pops_ts
 
 
-def work_out_transition_rates(df, cat=None, cat_list=None, start_date=None, end_date=None,
-                              cat_col="placement_type", next_col="placement_type_after"):
-    """
+def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None,
+                               cat_col="placement_type", next_col="placement_type_after"):
 
-    :param df:
-    :param cat:
-    :param cat_list:
-    :param start_date:
-    :param end_date:
-    :param cat_col:
-    :param next_col:
-    :return:
-    """
     if cat_list is None:
         cat_list = df[cat_col].unique()
 
@@ -44,15 +61,9 @@ def work_out_transition_rates(df, cat=None, cat_list=None, start_date=None, end_
 
     start_date, end_date = to_datetime([start_date, end_date])
 
-    if cat not in cat_list:
-        raise ValueError(f"Category '{cat}' not in list of allowed categories: {cat_list}")
-    if not set(cat_list).issuperset(set(df[cat_col].unique())):
-        raise ValueError("List of categories supplied disagrees with those found in the data. \n"
-                         f"Supplied: {cat_list}\n Inferred: {df[cat_col].unique()}")
-
-    if cat != 'all':
-        df = df[df[cat_col] == cat]
+    # remove episodes
     df = df.copy()
+    df = df[(df[cat_col].isin(cat_list)) & df[next_col].isin(cat_list)]
 
     # remove episodes outside the date range and truncate episodes extending beyond it
     df = truncate(df, start_date, end_date, s_col, e_col)
@@ -61,7 +72,8 @@ def work_out_transition_rates(df, cat=None, cat_list=None, start_date=None, end_
     total_placement_days = (df[e_col] - df[s_col]).dt.days.sum()
 
     # number of transitions to each placement type
-    n_transitions = df.groupby([cat_col, next_col]).size().droplevel(0)
+    # TODO: make this per placement type, not entire df
+    n_transitions = df.groupby([next_col, cat_col]).size()
     print(n_transitions)
     trans_rates = n_transitions / total_placement_days
     print(trans_rates)
@@ -69,14 +81,18 @@ def work_out_transition_rates(df, cat=None, cat_list=None, start_date=None, end_
     # probability of being in the same placement type tomorrow
     # (!) we should change how this works if we want to take into account
     # moves between two placements of the same type
-    trans_rates[cat] = 1 - trans_rates.drop(cat).sum()
+    for cat in cat_list:
+        trans_rates.loc[(cat, cat)] = 1 - (trans_rates
+                                          .xs(cat, level=1, drop_level=False)
+                                          .drop(index=cat, level=0)
+                                          .sum())
     print(total_placement_days)
-    return n_transitions, trans_rates
+    return trans_rates
 
 
-def work_out_daily_entrants(df, cat, cat_list, start_date=None, end_date=None,
-                           not_in_care="Not in care",
-                           cat_col="placement_type", prev_col="placement_type_before"):
+def get_daily_entrants(df, cat, cat_list, start_date=None, end_date=None,
+                            not_in_care="Not in care",
+                            cat_col="placement_type", prev_col="placement_type_before"):
     s_col = "DECOM"
     e_col = "DEC"
 
