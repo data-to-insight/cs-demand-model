@@ -23,6 +23,8 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     for bracket, t_mat in transitions_dict.items():
         print(str(bracket) + ':', t_mat, sep='\n')
 
+    entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
+    print(f'* * ****%%%ENTRANTS:\n{entrance.to_string()}')
     next_pop = historic_pop.loc[historic_pop.index.max()].copy()
     entrants_dict = 0
     print(f'* * >>>> * * INIT, POP?\n{next_pop.to_string()}')
@@ -41,8 +43,6 @@ def apply_ageing(next_pop, step_size=None):
 
 
 def apply_transitions(next_pop, transitions_dict):
-    for age_bin, transitions in transitions_dict.items():
-        pass
     return next_pop
 
 
@@ -59,7 +59,7 @@ def ageing_probs_per_bracket(bin_defs, step_size):
                     'w': 7,
                     'm': 30,
                     'y': 365}
-        count, unit = step_size[:-1], step_size[-1]
+        count, unit = step_size[:-1], step_size[-1].lower()
         count = int(count)
         unit = int(day_units[unit.lower()])
         days = count*unit
@@ -67,12 +67,13 @@ def ageing_probs_per_bracket(bin_defs, step_size):
         return days
 
     for age_bin in bin_defs:      
-        bin_min, bin_max = tuple(int(bound) for bound in bracket.split(' to '))
+        bin_min, bin_max = tuple(int(bound) for bound in age_bin.split(' to '))
         bin_width_days = (bin_max-bin_min)*365
         step_size_days = step_to_days(step_size)
         aged_out = step_size_days/bin_width_days
         ageing_mats[age_bin] = aged_out
     return ageing_mats
+
 
 def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
     trans_mats = {}
@@ -88,39 +89,19 @@ def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
             trans_mats[age_bin] = trans_rates
     return trans_mats
 
+
 def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
     entrants_mat = {}
     for age_bin in bin_defs:
         entrants_mat[age_bin] = {}
         placement_types = bin_defs[age_bin]
-        if len(placement_types) == 1:
-            entrants_mat[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
-        else:
-            bin_min, bin_max = age_bin
-            _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
-            for placement_type in placement_types:
-                _df = df['placement_type']
-                entry_rates = get_daily_entrants(df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
-                                not_in_care="Not in care",
-                                cat_col="placement_type", prev_col="placement_type_before")
-                entrants_mat[age_bin][placement_type] = entry_rates
-    return entrants_mat
-
-def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
-    entrants_mat = {}
-    for age_bin in bin_defs:
-        placement_types = bin_defs[age_bin]
-        if len(placement_types) == 1:
-            entrants_mat[age_bin] = pd.DataFrame(data=1.0, index=placement_types, columns=placement_types)
-        else:
-            bin_min, bin_max = split_age_bin(age_bin)
-            _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
-            for placement_type in placement_types:
-                _df = df['placement_type']
-                entry_rates = get_daily_entrants(_df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
-                                not_in_care="Not in care",
-                                cat_col="placement_type", prev_col="placement_type_before")
-                entrants_mat[age_bin][placement_type] = entry_rates
+        bin_min, bin_max = split_age_bin(age_bin)
+        this_bin_df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
+        for placement_type in placement_types:
+            entry_rates = get_daily_entrants(this_bin_df, cat=placement_type, cat_list=placement_types, start_date=start_date, end_date=end_date,
+                            not_in_care="Not in care",
+                            cat_col="placement_type", prev_col="placement_type_before")
+            entrants_mat[age_bin][placement_type] = entry_rates
     return entrants_mat
 
 
