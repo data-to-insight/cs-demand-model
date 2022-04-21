@@ -1,3 +1,7 @@
+import pandas as pd
+import pytest
+from csdmpy import ingress
+
 """
 fake_df1
 3 children with identical placement types. 1 goes to resi, 1 goes to supported and 1 leaves care.
@@ -40,19 +44,19 @@ possible movements that can be modelled
 """
 
 fake_trans_dict = {(-1, 1): {'Foster': 1.0},
-                    (1, 5): {'Foster': 1.8},
-                    (5, 10): {'Foster': 0.1, 'Resi': 0.5},
-                    (10, 16): {'Foster': 0.8, 'Resi': 1.5},
-                    (16, 18): {'Foster': 0.6, 'Resi': 0.5, 'Supported': 1.8}}
+                   (1, 5): {'Foster': 1.8},
+                   (5, 10): {'Foster': 0.1, 'Resi': 0.5},
+                   (10, 16): {'Foster': 0.8, 'Resi': 1.5},
+                   (16, 18): {'Foster': 0.6, 'Resi': 0.5, 'Supported': 1.8}}
 
 fake_entrants_dict = {(-1, 1): {'Foster': 1.0},
-                    (1, 5): {'Foster': 1.8},
-                    (5, 10): {'Foster': 0.1, 'Resi': 0.5},
-                    (10, 16): {'Foster': 0.8, 'Resi': 1.5},
-                    (16, 18): {'Foster': 0.6, 'Resi': 0.5, 'Supported': 1.8}}
+                      (1, 5): {'Foster': 1.8},
+                      (5, 10): {'Foster': 0.1, 'Resi': 0.5},
+                      (10, 16): {'Foster': 0.8, 'Resi': 1.5},
+                      (16, 18): {'Foster': 0.6, 'Resi': 0.5, 'Supported': 1.8}}
 
 fake_ageing_probs = {(-1, 1): 0.20,
-                    (1, 5): 0.63,
-                    (5, 10): 0.50,
-                    (10, 16): 0.79,
-                    (16, 18): 0.48}
+                     (1, 5): 0.63,
+                     (5, 10): 0.50,
+                     (10, 16): 0.79,
+                     (16, 18): 0.48}
