@@ -88,6 +88,7 @@ def truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC', close=False, 
         df[s_col] = df[s_col].clip(lower=start_date)
         df[e_col] = df[e_col].clip(upper=end_date)
 
+    df = df[df[e_col] > df[s_col]]
     return df
 
 
