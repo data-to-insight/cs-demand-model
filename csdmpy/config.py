@@ -1,4 +1,4 @@
-MAX_YEARS_OF_DATA = 5
+MAX_YEARS_OF_DATA = 2
 
 NOT_IN_CARE = 'Not in care'
 

@@ -40,7 +40,7 @@ def the_ingress_procedure(files_list):
     if remaining_files:
         # maybe just spit a warning + tell auntie goog.
         remaining_descriptions = {file['description'] for file in remaining_files}
-        raise UploadError(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
+        warn(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
 
     all_903 = pd.concat(yearly_dfs)
     all_903 = read_combined_903(all_903)

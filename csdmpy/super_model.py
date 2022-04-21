@@ -6,50 +6,50 @@ from csdmpy.config import age_brackets as bin_defs
 
 def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
-    date_index = make_date_index(end_date, horizon_date, step).index
+    ts_info = make_date_index(end_date, horizon_date, step)
 
     future_pop = pd.DataFrame(columns=historic_pop.columns,
-                              index=date_index)
-    print('* * * * * * HISTORIC POPS')
+                              index=ts_info.index)
+    print('* *][*][*] * * HISTORIC POPS')
     print(historic_pop.to_string())
-    print('* * * * * * FUTURE POPS')
+    print('[[*]] *]] * * * * FUTURE POPS')
     print(future_pop.to_string())
     # set up model:
-    transitions_dict = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
+    t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
-    print('* * * * * Transition probabilities for each bin\n')
-    for bracket, t_mat in transitions_dict.items():
+    print('[[[*] * * * * Transition probabilities for each category\n')
+    for bracket, t_mat in t_probs.items():
         print(str(bracket) + ':', t_mat, sep='\n')
 
     entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
-    print(f'* * ****%%%ENTRANTS:\n')
+    print(f'[*]] * ****%%%ENTRANTS for each category:\n')
     for bracket, entra in entrance.items():
         print(str(bracket) + ':', entra, sep='\n')
 
     next_pop = historic_pop.loc[historic_pop.index.max()].copy()
-    entrants_dict = 0
+
     print(f'* * >>>> * * INITIAL POP\n{next_pop.to_string()}')
     for date in future_pop.index:
-        print(f"****DATE:{date}")
-        next_pop = apply_ageing(next_pop)
-        next_pop = apply_transitions(next_pop, transitions_dict)
+        step_days = ts_info.loc[date, 'step_days']
+        print(f"***@@@@***@@*@@*@* DATE: {date} <>    <>  <>")
+        print('** -gg- * AAgeing')
+
+        next_pop = apply_ageing(next_pop, {'fake': 'fake records'})
         for ab, pt in next_pop.index:
-            next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
+            print('** $$-- * TRan$itioning')
+            print('age_bin: ', ab, ' | place: ', pt)
+            print(t_probs[ab][pt].to_string())
+            print('pop:')
+            print(next_pop[ab].to_string())
+            for i in range(step_days):
+                next_pop[ab, pt] = t_probs[ab][pt].dot(next_pop[ab])
+                next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
         future_pop.loc[date] = next_pop
 
     return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
 
-
-def apply_ageing(next_pop, step_size=None):
-    return next_pop
-
-
-def apply_transitions(next_pop, transitions_dict):
-    return next_pop
-
-
-def apply_entrants(next_pop, entrants_dict):
-    return next_pop
+def apply_ageing(pop, ageing_dict):
+    return pop
 
 def ageing_probs_per_bracket(bin_defs, step_size):
     ageing_mats = {}
@@ -58,21 +58,21 @@ def ageing_probs_per_bracket(bin_defs, step_size):
         """Converts as step_size string to an int number of calendar days. 
         A month  is approximated as 30 days"""
         day_units = {'d': 1,
-                    'w': 7,
-                    'm': 30,
-                    'y': 365}
+                     'w': 7,
+                     'm': 30,
+                     'y': 365}
         count, unit = step_size[:-1], step_size[-1].lower()
         count = int(count)
         unit = int(day_units[unit.lower()])
-        days = count*unit
+        days = count * unit
 
         return days
 
     for age_bin in bin_defs:      
         bin_min, bin_max = tuple(int(bound) for bound in age_bin.split(' to '))
-        bin_width_days = (bin_max-bin_min)*365
+        bin_width_days = (bin_max - bin_min) * 365
         step_size_days = step_to_days(step_size)
-        aged_out = step_size_days/bin_width_days
+        aged_out = step_size_days / bin_width_days
         ageing_mats[age_bin] = aged_out
     return ageing_mats
 
@@ -159,7 +159,8 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
     df = truncate(df, start_date, end_date, s_col, e_col)
 
     # calculate daily probability of transitioning to each placement type
-    total_placement_days = (df[e_col] - df[s_col]).dt.days.sum()
+    df['duration'] = (df[e_col] - df[s_col]).dt.days.sum()
+    total_placement_days = df.groupby(cat_col)['duration'].sum()
 
     # number of transitions to each placement type
     # TODO: make this per placement type, not entire df
