@@ -7,7 +7,8 @@ import numpy as np
 import os
 from io import BytesIO
 from .config import MAX_YEARS_OF_DATA, NOT_IN_CARE, table_headers, age_brackets, UploadError
-
+from warnings import warn
+from .utils import split_age_bin
 
 def the_ingress_procedure(files_list):
     print(type(files_list))
@@ -39,7 +40,7 @@ def the_ingress_procedure(files_list):
     if remaining_files:
         # maybe just spit a warning + tell auntie goog.
         remaining_descriptions = {file['description'] for file in remaining_files}
-        raise UploadError(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
+        warn(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
 
     all_903 = pd.concat(yearly_dfs)
     all_903 = read_combined_903(all_903)
@@ -66,9 +67,17 @@ def the_ingress_procedure(files_list):
         (all_903['CHILD'] == all_903['CHILD'].shift(1))
         & (all_903['DECOM'] != all_903['DEC'].shift(1))
     )
+
+    def get_in_the_bin(age):
+        for bracket in sorted(age_brackets.keys()):
+            lower, upper = split_age_bin(bracket)
+            if lower <= age < upper:
+                return bracket
+        warn('Failed to place child in bin!')
+
     all_903.loc[out_before_mask, 'placement_type_before'] = NOT_IN_CARE
-    all_903['age_bin'] = all_903['age'].apply(lambda age: [age_bin for age_bin in age_brackets
-                                                           if age_bin[0] <= age < age_bin[1]][0])
+
+    all_903['age_bin'] = all_903['age'].apply(get_in_the_bin)
 
     # date_df = get_daily_data(all_903)
 

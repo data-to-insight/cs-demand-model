@@ -29,12 +29,12 @@ for year in year_list:
 df = ingress.the_ingress_procedure(files_list)
 
 start, end, horizon= pd.to_datetime(['2018-01-01', '2020-01-01', '2022-01-01'])
-step_size = '1m'
-transitions_dict = transition_probs_per_bracket(df, bin_defs, start, end)
+step_size = '6m'
 
 for bracket, cats in bin_defs.items():
     print(str(bracket) + ':', cats, sep='  ')
 
+transitions_dict = transition_probs_per_bracket(df, bin_defs, start, end)
 print('* * * * * Transition probabilities for each bin\n')
 for bracket, t_mat in transitions_dict.items():
     print(str(bracket) + ':', t_mat, sep='\n')

@@ -1,4 +1,4 @@
-MAX_YEARS_OF_DATA = 5
+MAX_YEARS_OF_DATA = 2
 
 NOT_IN_CARE = 'Not in care'
 
@@ -12,11 +12,11 @@ table_headers = {
 }
 
 age_brackets = {
-    (-1, 1): ('Foster', ),
-    (1, 5): ('Foster', ),
-    (5, 10): ('Foster', 'Resi'),
-    (10, 16): ('Foster', 'Resi'),
-    (16, 18): ('Foster', 'Resi', 'Supported'),
+    '-1 to 1': ('Foster', ),
+    '1 to 5': ('Foster', ),
+    '5 to 10': ('Foster', 'Resi'),
+    '10 to 16': ('Foster', 'Resi'),
+    '16 to 18': ('Foster', 'Resi', 'Supported'),
 }
 
 class UploadError(Exception):
