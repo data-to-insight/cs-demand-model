@@ -13,17 +13,20 @@ F -> F: 3/6
 S/R -> F/S/R: all 0
 """
 @pytest.fixture(scope='session')
-dummy_df = pd.DataFrame([
-    {'CHILD': 111, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'}, # foster
-    {'CHILD': 111, 'DECOM': '20/05/2000', 'DEC': '22/01/2001', 'PLACE': 'K2', 'DOB': '10/05/1983'}, # resi
- ,
-    {'CHILD': 222, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'}, # foster
- ,
-    {'CHILD': 333, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U2', 'DOB': '10/05/1983'}, # foster
-    {'CHILD': 333, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'H5', 'DOB': '10/05/1983'}, # supported
+def dummy_data_5_eps():
+    df = pd.DataFrame([
+        {'CHILD': 111, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'},  # foster
+        {'CHILD': 111, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'K2', 'DOB': '10/05/1983'},  # resi
 
-])
+        {'CHILD': 222, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'},  # foster
 
+        {'CHILD': 333, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U2', 'DOB': '10/05/1983'},  # foster
+        {'CHILD': 333, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'H5', 'DOB': '10/05/1983'},  # supported
+
+    ])
+    for col in ['DECOM', 'DEC', 'DOB']:
+        df[col] = pd.to_datetime(df[col], format='%d/%m/%Y')
+    return df
 """
 fake_df2
 3 children who change their placement types within a 10-day period. 
