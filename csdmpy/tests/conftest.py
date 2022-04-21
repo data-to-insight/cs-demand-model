@@ -4,17 +4,23 @@ from csdmpy import ingress
 
 """
 fake_df1
-3 children with identical placement types. 1 goes to resi, 1 goes to supported and 1 leaves care.
+3 children with 2 days in Foster care each
+1 goes to 2 days in Resi, ; goes to 2 days in Supp; 1 leaves care
+expected transition probs: 
+F -> R: 1/6
+F -> S: 1/6
+F -> F: 3/6
+S/R -> F/S/R: all 0
 """
-fake_df1 = pd.DataFrame([
-    {'CHILD': 111, 'DECOM': '16/05/2000', 'DEC':'20/05/2000', 'PLACE': 'U1'}, # foster
-    {'CHILD': 111, 'DECOM': '20/05/2000', 'DEC':'22/01/2001', 'PLACE': 'K2'}, # resi
-
-    {'CHILD': 222, 'DECOM': '17/05/2000', 'DEC':'19/05/2000', 'PLACE': 'U1'}, # foster
-    {'CHILD': 222, 'DECOM': '19/05/2000', 'DEC':'30/01/2001', 'PLACE': 'XX'}, # outside
-
-    {'CHILD': 333, 'DECOM': '18/05/2000', 'DEC':'20/05/2000', 'PLACE': 'U2'}, # foster
-    {'CHILD': 333, 'DECOM': '21/05/2000', 'DEC':'24/05/2000', 'PLACE': 'H5'}, # supported
+@pytest.fixture(scope='session')
+dummy_df = pd.DataFrame([
+    {'CHILD': 111, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'}, # foster
+    {'CHILD': 111, 'DECOM': '20/05/2000', 'DEC': '22/01/2001', 'PLACE': 'K2', 'DOB': '10/05/1983'}, # resi
+ ,
+    {'CHILD': 222, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983'}, # foster
+ ,
+    {'CHILD': 333, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U2', 'DOB': '10/05/1983'}, # foster
+    {'CHILD': 333, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'H5', 'DOB': '10/05/1983'}, # supported
 
 ])
 
