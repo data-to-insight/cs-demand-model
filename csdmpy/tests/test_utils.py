@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.utils import truncate
+from csdmpy.utils import truncate, get_ongoing
 
 
 def test_truncate(dummy_data_5_eps):
@@ -20,3 +20,21 @@ def test_truncate(dummy_data_5_eps):
     print(result.to_string())
     assert result['DECOM'].to_list() == pd.to_datetime(['2000-05-20'] * 2).to_list()
     assert result['DEC'].to_list() == pd.to_datetime(['2000-05-21'] * 2).to_list()
+
+def test_get_ongoing(dummy_data_5_eps):
+    
+    start, end = pd.to_datetime(('20/05/2000', '21/05/2000'), format='%d/%m/%Y')
+
+    t1 = '20/05/2022'
+    df = get_ongoing(df, t1, s_col='DECOM', e_col='DEC')
+    # if it ended before that time, ended at that time, or started after that time, then it is not ongoing.
+    # check that the only episodes that remain are ongoing episodes.
+    condition = (df[e_col]<t) | (df[e_col]==t) | (df[s_col]>t)
+    result = len(df[condition])
+    assert result == 0
+    assert df['DEC'].to_list() == pd.to_datetime(['2000-05-22'] * 2).to_list()
+    assert df['DEC'].to_list() == pd.to_datetime(['2000-05-20'] * 2).to_list()
+
+    t2 = '23/05/2022'
+    df = get_ongoing(df, t2, s_col='DECOM', e_col='DEC')
+    assert len(df) == 0
