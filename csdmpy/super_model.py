@@ -5,11 +5,11 @@ from csdmpy.config import age_brackets as bin_defs
 
 
 def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
-    historic_pop = make_populations_ts(df, bin_defs, start_date, end_date)
+    historic_pop = make_populations_ts(df, bin_defs, start_date, end_date).sort_index()
     ts_info = make_date_index(end_date, horizon_date, step)
 
     future_pop = pd.DataFrame(columns=historic_pop.columns,
-                              index=ts_info.index)
+                              index=ts_info.index).sort_index()
     print('* *][*][*] * * HISTORIC POPS')
     print(historic_pop.to_string())
     print('[[*]] *]] * * * * FUTURE POPS')
@@ -35,13 +35,14 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
         print('** -gg- * AAgeing')
 
         next_pop = apply_ageing(next_pop, {'fake': 'fake records'})
-        for ab, pt in next_pop.index:
-            print('** $$-- * TRan$itioning')
-            print('age_bin: ', ab, ' | place: ', pt)
-            print(t_probs[ab][pt].to_string())
-            print('pop:')
-            print(next_pop[ab].to_string())
-            for i in range(step_days):
+        for i in range(step_days):
+            #print('** $$-- * TRan$itioning')
+            #print('age_bin: ', ab, ' | place: ', pt)
+            #print(t_probs[ab][pt].to_string())
+            #print('pop:')
+            #print(next_pop[ab].to_string())
+            ## TODO: use matmuls, cache matrices
+            for ab, pt in next_pop.index:
                 next_pop[ab, pt] = t_probs[ab][pt].dot(next_pop[ab])
                 next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
         future_pop.loc[date] = next_pop
@@ -85,8 +86,8 @@ def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
         else:
             bin_min, bin_max = split_age_bin(age_bin)
             _df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)]
-            _df = df[df['placement_type'].isin(placement_types)]
-            trans_rates = get_daily_transition_rates(df, cat_list=placement_types, start_date=start_date,
+            _df = _df[_df['placement_type'].isin(placement_types)]
+            trans_rates = get_daily_transition_rates(_df, cat_list=placement_types, start_date=start_date,
                                                      end_date=end_date)
             trans_mats[age_bin] = trans_rates
     return trans_mats
@@ -121,12 +122,12 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
                                           .groupby(['age_bin', cat_col])
                                           .size()))
 
-    categories = pd.MultiIndex.from_tuples([(age_bin, place)
-                                            for age_bin, place_list in bin_defs.items() for place in place_list])
+    mind = pd.MultiIndex.from_tuples([(age_bin, place)
+                                      for age_bin, place_list in bin_defs.items() for place in place_list])
 
-    discard_cols = set(pops_ts.columns) - set(categories)
+    discard_cols = set(pops_ts.columns) - set(mind)
     print('>discarding: ', discard_cols)
-    add_cols = set(categories) - set(pops_ts.columns)
+    add_cols = set(mind) - set(pops_ts.columns)
     print('>adding: ', add_cols)
     pops_ts = pops_ts.drop(columns=discard_cols)
     for col in add_cols:
@@ -164,6 +165,7 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
 
     # number of transitions to each placement type
     # TODO: make this per placement type, not entire df
+    print('{}}{{{{{{{{{{{{{{{{ - - IN TRANSFUNC -   }}}}{{{{{{{{{}{}{}{}{}')
     n_transitions = df.groupby([next_col, cat_col]).size()
     print(n_transitions)
     trans_rates = n_transitions / total_placement_days
@@ -171,13 +173,20 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
 
     # probability of being in the same placement type tomorrow
     # (!) we should change how this works if we want to take into account
-    # moves between two placements of the same type
+    #     moves between two placements of the same type
+    mind = pd.MultiIndex.from_product([cat_list] * 2)
+    for i in mind:
+        if i not in trans_rates.index:
+            trans_rates.at[i] = 0
+            print(f'filling in value for {i} in transitions')
     for cat in cat_list:
         trans_rates.loc[(cat, cat)] = 1 - (trans_rates
-                                          .xs(cat, level=1, drop_level=False)
-                                          .drop(index=cat, level=0)
-                                          .sum())
+                                           .xs(cat, level=1, drop_level=False)
+                                           .drop(index=cat, level=0)
+                                           .sum())
     print(total_placement_days)
+
+
     return trans_rates
 
 
