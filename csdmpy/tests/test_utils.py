@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.utils import truncate, get_ongoing
+from csdmpy.utils import truncate, get_ongoing, split_age_bin
 
 
 def test_truncate(dummy_data_5_eps):
@@ -38,3 +38,7 @@ def test_get_ongoing(dummy_data_5_eps):
     t2 = '23/05/2022'
     df = get_ongoing(df, t2, s_col='DECOM', e_col='DEC')
     assert len(df) == 0
+
+    def test_split_age_bin():
+        assert 5, 10 == split_age_bin('5 to 10')
+        assert -1, 1 == split_age_bin('-1 to 1.0')
