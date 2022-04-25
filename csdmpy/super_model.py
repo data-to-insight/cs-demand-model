@@ -8,8 +8,8 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date).sort_index()
     ts_info = make_date_index(end_date, horizon_date, step)
 
-    future_pop = pd.DataFrame(columns=historic_pop.columns,
-                              index=ts_info.index).sort_index()
+    future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index).sort_index()
+
     print('* *][*][*] * * HISTORIC POPS')
     print(historic_pop.to_string())
     print('[[*]] *]] * * * * FUTURE POPS')
@@ -18,10 +18,12 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
     print('[[[*] * * * * Transition probabilities for each category\n')
+
     for bracket, t_mat in t_probs.items():
         print(str(bracket) + ':', t_mat, sep='\n')
 
     entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
+
     print(f'[*]] * ****%%%ENTRANTS for each category:\n')
     for bracket, entra in entrance.items():
         print(str(bracket) + ':', entra, sep='\n')
@@ -31,10 +33,11 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     print(f'* * >>>> * * INITIAL POP\n{next_pop.to_string()}')
     for date in future_pop.index:
         step_days = ts_info.loc[date, 'step_days']
-        print(f"***@@@@***@@*@@*@* DATE: {date} <>    <>  <>")
-        print('** -gg- * AAgeing')
-
-        next_pop = apply_ageing(next_pop, {'fake': 'fake records'})
+        print(f"* * * * * * * * {date} ")
+        print('Making children older...')
+        next_pop = apply_ageing(next_pop, {'fake': 'fake',
+                                           'records': 'records'})
+        print('Moving children around...')
         for i in range(step_days):
             #print('** $$-- * TRan$itioning')
             #print('age_bin: ', ab, ' | place: ', pt)
@@ -44,13 +47,18 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
             ## TODO: use matmuls, cache matrices
             for ab, pt in next_pop.index:
                 next_pop[ab, pt] = t_probs[ab][pt].dot(next_pop[ab])
+        print('Adding new children...')
+        for i in range(step_days):
+            for ab, pt in next_pop.index:
                 next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
         future_pop.loc[date] = next_pop
 
     return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
 
+
 def apply_ageing(pop, ageing_dict):
     return pop
+
 
 def ageing_probs_per_bracket(bin_defs, step_size):
     ageing_mats = {}
