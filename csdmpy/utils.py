@@ -64,7 +64,7 @@ def make_date_index(start_date, end_date, step_size):
 
     ts_info = pd.DataFrame(columns=['step_days'])
     date = end_date
-    while date + step_off > start_date:
+    while date >= start_date:
         ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
         date -= step_off
     return ts_info
