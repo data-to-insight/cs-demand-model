@@ -58,17 +58,17 @@ print('#'*70)
 print(grouped_df)
 
 base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
-                'Residential': {'in_house':40, 'external':60},
+                'Resi': {'in_house1':40, 'external':60},
                 'Supported' : {'Sup': 40,},
                 'Other': {'secure_home': 150, 'with_family':30, 'any_other':40}}
 adjusted_costs = {'Foster': {'friend_relative': 100, 'in_house': 200, 'IFA': 300, },
-                'Residential': {'in_house':400, 'external':600},
+                'Resi': {'in_house1':400, 'external':600},
                 'Supported' : {'Sup': 400,},
                 'Other': {'secure_home': 1500, 'with_family':30, 'any_other':400}}
 cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}
 
 proportions = {'Foster': {'friend_relative': 0.5, 'in_house': 0.2, 'IFA': 0.3, },
-                'Residential': {'in_house':0.4, 'external':0.6},
+                'Resi': {'in_house1':0.4, 'external':0.6},
                 'Supported' : {'Sup': 1,},
                 'Other': {'secure_home': 0.7, 'with_family':0.1, 'any_other':0.2}}
 
