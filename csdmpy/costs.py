@@ -4,6 +4,8 @@ Cost modelling
 turning forecast values from model and cost estimates typed into frontend into cost projections
 '''
 import pandas as pd
+import numpy as np
+from csdmpy.super_model import step_to_days
 
 # The structure of future_pop
 """
@@ -32,16 +34,18 @@ cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}"""
 
 ## FRONTEND CHECK: For every proportion type filled, a corresponding price must be filled in too.
 ## FRONTEND CHECK / INGRESS ADDITION: all percentages/numbers should be converted to a fraction of the total.
+## FRONTEND : All costs received from the user should be weekly costs.
 
 def proportion_split(df, proportions):
     """
     This function splits the populations in the various placement types into placement locations.
+    It shows how many children will be in each placement location.
 
     The example structures of the arguments are:
-    df =  pd.DataFrame({'fives': [5, 10, 15, 20, 25, 30, 35, 40], 'tens': [10, 20, 30, 40, 50, 60, 70, 80]})
-    proportions = {'fives':{'int':0.75, 'ext':0.20, 'an':0.05}}
+    df =  pd.DataFrame({'Foster': [5, 10, 15, 20, 25, 30, 35, 40], 'Supported': [10, 20, 30, 40, 50, 60, 70, 80]})
+    proportions = {'Foster':{'friend_relative':0.75, 'in_house':0.20, 'IFA':0.05}}
 
-    tens is intentionally left out of proportions to demonstrate what happens when a column name is missing.
+    Supported is intentionally left out of proportions to demonstrate what happens when a column name is missing.
     """
     # copy over the date values contained in the index.
     df_made = pd.DataFrame(index =  df.index)
@@ -69,7 +73,16 @@ def proportion_split(df, proportions):
 
     return df_made
 
-def create_cost_ts(df_made, location_costs ):
+def get_step_costs(weekly_costs, step_size):
+    """This function cummulates the weekly costs given by the user"""
+
+    days = step_to_days(step_size)
+    daily_costs = np.array(weekly_costs) / 7
+    location costs = daily_costs * days
+
+    return step_costs
+
+def create_cost_ts(df_made, location_costs, step_size ):
     '''
     This function calculates the cost over time for each placement location in each placement type.
 
@@ -84,6 +97,8 @@ def create_cost_ts(df_made, location_costs ):
             ind_lst[0].append(placement_type)
             ind_lst[1].append(location)
             vals_lst.append(value)
+    
+    vals_lst = get_step_costs(vals_lst, step_size)
 
     cols = pd.MultiIndex.from_arrays(ind_lst, names = ['placement_types', 'placement_locations'])
     
@@ -94,3 +109,4 @@ def create_cost_ts(df_made, location_costs ):
     costed_df = df_made.multiply(cost_structure)
 
     return costed_df
+
