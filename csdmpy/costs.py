@@ -17,20 +17,6 @@ placement_type      Foster       Resi     Foster      Resi  Supported     Foster
 2021-07-01      170.151327  33.988399  12.688585  1.586073  15.744095  31.865571  4.159085    0.0     0.0
 2022-01-01       191.23918  38.190958  13.615888  1.701986  18.419487  35.776514  4.711155    0.0     0.0
 """
-# The structure of the weekly costs expected from the user.
-"""base_costs = {
-        'Foster': 575 / 7,
-        'Resi': 3915 / 7,
-        'Supported': 1114 / 7,
-        'All Other': 0,
-    }
-adjusted_costs = {
-        'Foster': 600 / 7,
-        'Resi': 3000 / 7,
-        'Supported': 2000 / 7,
-        'All Other': 0,
-    }
-cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}"""
 
 ## FRONTEND CHECK: For every proportion type filled, a corresponding price must be filled in too.
 ## FRONTEND CHECK / INGRESS ADDITION: all percentages/numbers should be converted to a fraction of the total.
@@ -82,7 +68,7 @@ def get_step_costs(weekly_costs, step_size):
 
     return step_costs
 
-def create_cost_ts(df_made, location_costs, step_size ):
+def create_cost_ts(df_made, location_costs, step_size, inflation = False):
     '''
     This function calculates the cost over time for each placement location in each placement type.
 
@@ -104,9 +90,37 @@ def create_cost_ts(df_made, location_costs, step_size ):
     
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
     cost_structure = pd.DataFrame(index =  df_made.index, columns = cols)
-    cost_structure.loc[ : , : ] = vals_lst
+    if inflation == False:
+        cost_structure.loc[ : , : ] = vals_lst
+    elif inflation == True:
+        pass    
 
     costed_df = df_made.multiply(cost_structure)
 
     return costed_df
 
+def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = False):
+    """
+    The expected shape of cost_dict is 
+    cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}
+    where base_costs and adjusted_costs are similar dictionaries of the form
+    location_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, }, 'Supported' : {'Sup': 40,}}
+    That is, base_location_costs = cost_dict['base_costs']
+
+    The expected shape of proportions is the same as location_costs, however the numbers represent fractions/percentages
+    of the population in each location type.
+    """
+
+    future_costs = {}
+    proportioned_df = proportions_split(df_future, proportions)
+    for scenario in cost_dict:
+        # Scenarios are base, adjusted
+        location_costs = cost_dict[scenario]
+        # Get the costs over the specified time period.
+        cost_ts = create_cost_ts(df_made = proportioned_df, location_costs = location_costs, 
+                                    step_size = step_size, inflation = inflation)
+        future_costs[scenario] = cost_ts
+    
+    return future_costs
+
+    
