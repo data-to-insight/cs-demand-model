@@ -35,13 +35,16 @@ cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}"""
 
 def proportion_split(df, proportions):
     """
+    This function splits the populations in the various placement types into placement locations.
+
     The example structures of the arguments are:
     df =  pd.DataFrame({'fives': [5, 10, 15, 20, 25, 30, 35, 40], 'tens': [10, 20, 30, 40, 50, 60, 70, 80]})
     proportions = {'fives':{'int':0.75, 'ext':0.20, 'an':0.05}}
 
     tens is intentionally left out of proportions to demonstrate what happens when a column name is missing.
     """
-    df_made = pd.DataFrame()
+    # copy over the date values contained in the index.
+    df_made = pd.DataFrame(index =  df.index)
     # create array structure that will be used to form a MultiIndex for the DataFrame
     index_list = [[],[]]
 
@@ -50,6 +53,7 @@ def proportion_split(df, proportions):
         
         if col not in proportions:
             # if no split is filled in by the user, add column name to proportions data but do not split.
+            # This is because, in the excel sheet, Supported placements are not split.
             proportions[col] = {col: 1.0}
         # Get proportions dictionary. Use .get() so that missing columns return None instead of raising an error.
         proportion_dict = proportions.get(col)
@@ -60,7 +64,33 @@ def proportion_split(df, proportions):
                 # create a new column to contain the proportion's values and maintain the name of the proportion.
                 df_made[name] = df[col]*value
     # create MultiIndex that will be used to replace column names.
-    index = pd.MultiIndex.from_arrays(index_list, names=['placements', 'sub-placements'])
+    index = pd.MultiIndex.from_arrays(index_list, names = ['placement_types', 'placement_locations'])
     df_made.columns = index
 
     return df_made
+
+def create_cost_ts(df_made, location_costs ):
+    '''
+    This function calculates the cost over time for each placement location in each placement type.
+
+    location_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, }, 'Supported' : {'Sup': 40,}}
+    '''
+
+    ind_lst = [[],[]]
+    vals_lst = []
+    for placement_type in location_costs:
+        
+        for location, value in location_costs[placement_type].items():
+            ind_lst[0].append(placement_type)
+            ind_lst[1].append(location)
+            vals_lst.append(value)
+
+    cols = pd.MultiIndex.from_arrays(ind_lst, names = ['placement_types', 'placement_locations'])
+    
+    # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
+    cost_structure = pd.DataFrame(index =  df_made.index, columns = cols)
+    cost_structure.loc[ : , : ] = vals_lst
+
+    costed_df = df_made.multiply(cost_structure)
+
+    return costed_df
