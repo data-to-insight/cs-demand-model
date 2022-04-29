@@ -5,32 +5,40 @@ from csdmpy.config import age_brackets as bin_defs
 
 
 def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
+    # - - - - - -  CREATE POPULATION DATAFRAMES  - - - - - -
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date).sort_index()
-    ts_info = make_date_index(end_date, horizon_date, step)
 
+    ts_info = make_date_index(end_date, horizon_date, step)
     future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index).sort_index()
 
-    print('* *][*][*] * * HISTORIC POPS')
+    print('* *][*][*] * * (( HISTORIC POPS ))')
     print(historic_pop.to_string())
-    print('[[*]] *]] * * * * FUTURE POPS')
+    print('[[*]] *]] * * * * (( FUTURE POPS ))')
     print(future_pop.to_string())
-    # set up model:
+
+    # - - - - - -  SET UP THE MODEL  - - - - - -
+
     t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
-    print('[[[*] * * * * Transition probabilities for each category\n')
+    print('[[[*] * * * * (( TRANS PROBS ))\n')
 
     for bracket, t_mat in t_probs.items():
         print(str(bracket) + ':', t_mat, sep='\n')
 
+    precalced_transition_matrices = calculate_timestep_transition_matrices(ts_info, t_probs)
+
     entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
 
-    print(f'[*]] * ****%%%ENTRANTS for each category:\n')
+    print(f'[*]] * ****%%%(( ENTRANTS )) for each category:\n')
     for bracket, entra in entrance.items():
         print(str(bracket) + ':', entra, sep='\n')
 
     next_pop = historic_pop.loc[historic_pop.index.max()].copy()
 
-    print(f'* * >>>> * * INITIAL POP\n{next_pop.to_string()}')
+    print(f'* * >>>> * * (( INITIAL POP ))\n{next_pop.to_string()}')
+
+    # - - - - - -  RUN THE MODEL  - - - - - -
+
     for date in future_pop.index:
         step_days = ts_info.loc[date, 'step_days']
         print(f"* * * * * * * * {date} ")
@@ -38,22 +46,34 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
         next_pop = apply_ageing(next_pop, {'fake': 'fake',
                                            'records': 'records'})
         print('Moving children around...')
-        for i in range(step_days):
-            #print('** $$-- * TRan$itioning')
-            #print('age_bin: ', ab, ' | place: ', pt)
-            #print(t_probs[ab][pt].to_string())
-            #print('pop:')
-            #print(next_pop[ab].to_string())
-            ## TODO: use matmuls, cache matrices
-            for ab, pt in next_pop.index:
-                next_pop[ab, pt] = t_probs[ab][pt].dot(next_pop[ab])
-        print('Adding new children...')
-        for i in range(step_days):
-            for ab, pt in next_pop.index:
-                next_pop[ab, pt] = next_pop[ab, pt] + entrance[ab][pt]
+        for ab in next_pop.index.get_level_values('age_bin').unique():
+            next_pop[ab] = precalced_transition_matrices[step_days][ab].dot(next_pop[ab]) + entrance[ab] * step_days
+
         future_pop.loc[date] = next_pop
 
-    return historic_pop, future_pop # now we can convert these to csv/whatever and send to the frontend
+    return historic_pop, future_pop  # now we can convert these to csv/whatever and send to the frontend
+
+
+def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
+    # this makes a dict which maps the step_size in days to
+    # the dict of transition matrices for each age_bracket for that step_size
+
+    # get the unique step sizes from smallest to largest
+    unique_step_sizes = ts_info['step_days'].unique()
+    unique_step_sizes.sort()
+
+    # start with the t_probs for one day then add those for each step size present in the time series
+    matzo = {1: daily_t_probs}
+    for step_days_value in unique_step_sizes:
+        prev_highest = max(matzo)
+        step_size_t_probs = matzo[max(matzo)].copy()
+        for age_bracket in step_size_t_probs:  # this is good enough, shh
+            T = step_size_t_probs[age_bracket]
+            for i in range(step_days_value - max(matzo)):
+                T = T.dot(daily_t_probs[age_bracket])
+            step_size_t_probs[age_bracket] = T
+        matzo[step_days_value] = step_size_t_probs
+    return matzo
 
 
 def apply_ageing(pop, ageing_dict):
@@ -108,10 +128,9 @@ def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
         placement_types = bin_defs[age_bin]
         bin_min, bin_max = split_age_bin(age_bin)
         this_bin_df = df[(df['age'] >= bin_min) & (df['age'] < bin_max)].copy()
-        for placement_type in placement_types:
-            entry_rates = get_daily_entrants(this_bin_df, cat=placement_type, cat_list=placement_types,
+        entry_rates = get_daily_entrants(this_bin_df, cat_list=placement_types,
                                              start_date=start_date, end_date=end_date)
-            entrants_mat[age_bin][placement_type] = entry_rates
+        entrants_mat[age_bin] = entry_rates
     return entrants_mat
 
 
@@ -141,11 +160,15 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
     for col in add_cols:
         pops_ts[col] = 0
     pops_ts = pops_ts.fillna(0)
+
+    print(pops_ts.to_string())
+
     return pops_ts
 
 
 def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None,
                                cat_col="placement_type", next_col="placement_type_after"):
+    print('{}}{{{{{{{{{{{{{{{{ - - IN TRANSFUNC -   }}}}{{{{{{{{{}{}{}{}{}')
 
     if cat_list is None:
         cat_list = df[cat_col].unique()
@@ -160,20 +183,23 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
 
     start_date, end_date = to_datetime([start_date, end_date])
 
-    # remove episodes
     df = df.copy()
-    df = df[(df[cat_col].isin(cat_list)) & df[next_col].isin(cat_list)]
+
+    # remove episodes that aren't in a relevant category and transferring to a relevant category
+    initial_rows = len(df)
+    df = df[(df[cat_col].isin(cat_list)) ]#& df[next_col].isin(cat_list)]
+    rows_dropped = initial_rows - len(df)
+
+    print(f'dropped {rows_dropped} of {initial_rows} rows due to not being in {cat_list}')
 
     # remove episodes outside the date range and truncate episodes extending beyond it
-    df = truncate(df, start_date, end_date, s_col, e_col)
+    df = truncate(df, start_date, end_date, s_col, e_col, close=True, clip=True)
 
     # calculate daily probability of transitioning to each placement type
     df['duration'] = (df[e_col] - df[s_col]).dt.days.sum()
     total_placement_days = df.groupby(cat_col)['duration'].sum()
 
     # number of transitions to each placement type
-    # TODO: make this per placement type, not entire df
-    print('{}}{{{{{{{{{{{{{{{{ - - IN TRANSFUNC -   }}}}{{{{{{{{{}{}{}{}{}')
     n_transitions = df.groupby([next_col, cat_col]).size()
     print(n_transitions)
     trans_rates = n_transitions / total_placement_days
@@ -194,11 +220,10 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
                                            .sum())
     print(total_placement_days)
 
+    return trans_rates.unstack().reindex(index=cat_list, columns=cat_list)
 
-    return trans_rates
 
-
-def get_daily_entrants(df, cat, cat_list, start_date=None, end_date=None,
+def get_daily_entrants(df, cat_list, start_date=None, end_date=None,
                             not_in_care="Not in care",
                             cat_col="placement_type", prev_col="placement_type_before"):
     s_col = "DECOM"
@@ -211,16 +236,21 @@ def get_daily_entrants(df, cat, cat_list, start_date=None, end_date=None,
         end_date = df[e_col].max()
 
     start_date, end_date = to_datetime([start_date, end_date])
+    df = df.copy()
+    #df = df[df[cat_col] == cat].copy()
 
-    df = df[df[cat_col] == cat].copy()
+    # remove episodes starting outside the date range
+    df = df[(df['DECOM'] >= start_date) & (df['DECOM'] <= end_date)]
 
-    # remove episodes outside the date range and truncate episodes extending beyond it
-    df = truncate(df, start_date, end_date, s_col, e_col)
+    df = df[df[prev_col] == not_in_care].groupby(cat_col).size()
+    nudf = pd.Series(data=0, index=cat_list)
+    cols = list(set(df.index) & set(cat_list))
+    nudf[cols] = df[cols]
 
-    entrants = ((df[prev_col] == not_in_care)
-        & (df[cat_col] == cat)).sum()
+    #entrants = ((df[prev_col] == not_in_care)
+    #            & (df[cat_col] == cat)).sum()
 
     total_days = (end_date - start_date).days
-    entrants = len(df) / total_days
-
-    return entrants
+    entrants = nudf / total_days
+    print(entrants)
+    return entrants.reindex(cat_list)
