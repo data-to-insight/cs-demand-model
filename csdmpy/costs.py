@@ -7,15 +7,24 @@ import pandas as pd
 import numpy as np
 from csdmpy.super_model import step_to_days
 
-# The structure of future_pop
+## Functionality present
+""" 
+- generate time series of cost over forecasted population time period.
+- process multiple scenarios. base, adjusted1, adjusted2 ... adjusted_n.
+- Split population forecasts into sub placement locations per placement type.
+- Process placement location proportions from user.
+- Process a variable number of placement locations and names.
+
 """
-age_bin           10 to 16              16 to 18                         5 to 10           1 to 5 -1 to 1
-placement_type      Foster       Resi     Foster      Resi  Supported     Foster      Resi Foster  Foster
-2020-01-01      106.198122  21.232015   9.325041   1.16563   8.248693  19.960677  2.526994    0.0     0.0
-2020-07-01      127.630768  25.508958  10.552913  1.319114  10.647734   23.95778  3.066877    0.0     0.0
-2021-01-01      148.715533  29.714604  11.657999   1.45725  13.123215  27.882665  3.605005    0.0     0.0
-2021-07-01      170.151327  33.988399  12.688585  1.586073  15.744095  31.865571  4.159085    0.0     0.0
-2022-01-01       191.23918  38.190958  13.615888  1.701986  18.419487  35.776514  4.711155    0.0     0.0
+
+# The structure of grouped_df which is passed in here as df
+"""
+placement_type      Foster       Resi  Supported
+2020-01-01      135.483841  24.924639   8.248693
+2020-07-01      162.141461  29.894949  10.647734
+2021-01-01      188.256198  34.776859  13.123215
+2021-07-01      214.705483  39.733557  15.744095
+2022-01-01      240.631582  44.604098  18.419487
 """
 
 ## FRONTEND CHECK: For every proportion type filled, a corresponding price must be filled in too.
@@ -34,7 +43,6 @@ def proportion_split(df, proportions):
     Supported is intentionally left out of proportions to demonstrate what happens when a column name is missing.
     """
     # copy over the date values contained in the index.
-    print("*************START PROPORTIONS***************")
     df_made = pd.DataFrame(index =  df.index)
     # create array structure that will be used to form a MultiIndex for the DataFrame columns.
     index_list = [[],[]]
@@ -56,12 +64,9 @@ def proportion_split(df, proportions):
                     e.g in_house which is present in both Foster and Residential '''
                 df_made[name] = df[col]*value
     # create MultiIndex that will be used to replace column names.
-    print("*************MADE COLUMNS***************")
     print(df_made.columns)
-    print("*************INDEX LIST***************")
     print(index_list)
     df_made.columns = pd.MultiIndex.from_arrays(index_list, names = ['placement_types', 'placement_locations'])
-    print("*************PROPORTIONS SUCCESSFUL***************")
     return df_made
 
 def get_step_costs(weekly_costs, step_size):
@@ -70,7 +75,6 @@ def get_step_costs(weekly_costs, step_size):
     days = step_to_days(step_size)
     daily_costs = np.array(weekly_costs) / 7
     step_costs = daily_costs * days
-    print("*************STEPPED COSTS***************")
     return step_costs
 
 def create_cost_ts(df_made, location_costs, step_size, inflation = False):
@@ -79,7 +83,6 @@ def create_cost_ts(df_made, location_costs, step_size, inflation = False):
 
     location_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, }, 'Supported' : {'Sup': 40,}}
     '''
-    print("*************BREAK DOWN LOCATION COSTS***************")
     ind_lst = [[],[]]
     vals_lst = []
     for placement_type in location_costs:
@@ -88,18 +91,15 @@ def create_cost_ts(df_made, location_costs, step_size, inflation = False):
             ind_lst[0].append(placement_type)
             ind_lst[1].append(location)
             vals_lst.append(value)
-    print("*************BROKE DOWN LOCATION COSTS***************")
     vals_lst = get_step_costs(vals_lst, step_size)
 
     cols = pd.MultiIndex.from_arrays(ind_lst, names = ['placement_types', 'placement_locations'])
-    print("*************CREATED COLUMN NAMES***************")
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
     cost_structure = pd.DataFrame(index =  df_made.index, columns = cols)
     if inflation == False:
         cost_structure.loc[ : , : ] = vals_lst
     elif inflation == True:
-        pass    
-    print("*************CHECKED INFLATION***************")
+        pass
     costed_df = df_made.multiply(cost_structure)
 
     return costed_df
@@ -119,26 +119,12 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = Fa
     future_costs = {}
     proportioned_df = proportion_split(df_future, proportions)
     
-    print("#"*30)
-    print("PROPORTIONED")
-    print(proportioned_df)
-    print("#"*30)
     for scenario in cost_dict:
         # Scenarios are base, adjusted
-        location_costs = cost_dict[scenario]        
-        print("#"*30)
-        print("LOCATION COSTS")
-        print(location_costs)
-        print("#"*30)
+        location_costs = cost_dict[scenario]     
         # Get the costs over the specified time period.
         cost_ts = create_cost_ts(df_made = proportioned_df, location_costs = location_costs, 
-                                    step_size = step_size, inflation = inflation)        
-        print("#"*30)
-        print("COSTS TIME SERIES")
-        print(cost_ts)
-        print("#"*30)
+                                    step_size = step_size, inflation = inflation)
         future_costs[scenario] = cost_ts
     
     return future_costs
-
-    
