@@ -59,23 +59,24 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
 def apply_ageing(pop, ageing_dict):
     return pop
 
+def step_to_days(step_size):
+    """Converts as step_size string to an int number of calendar days. 
+    A month  is approximated as 30 days"""
+    day_units = {   'd': 1,
+                    'w': 7,
+                    'm': 30,
+                    'y': 365    }
+    count, unit = step_size[:-1], step_size[-1].lower()
+    count = int(count)
+    unit = int(day_units[unit.lower()])
+    days = count * unit
+
+    return days
 
 def ageing_probs_per_bracket(bin_defs, step_size):
     ageing_mats = {}
 
-    def step_to_days(step_size):
-        """Converts as step_size string to an int number of calendar days. 
-        A month  is approximated as 30 days"""
-        day_units = {'d': 1,
-                     'w': 7,
-                     'm': 30,
-                     'y': 365}
-        count, unit = step_size[:-1], step_size[-1].lower()
-        count = int(count)
-        unit = int(day_units[unit.lower()])
-        days = count * unit
-
-        return days
+    days = step_to_days(step_size)
 
     for age_bin in bin_defs:      
         bin_min, bin_max = tuple(int(bound) for bound in age_bin.split(' to '))
