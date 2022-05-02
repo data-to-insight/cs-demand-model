@@ -77,10 +77,32 @@ def get_step_costs(weekly_costs, step_size):
     step_costs = daily_costs * days
     return step_costs
 
+def include_inflation(costed_df, inflation_rate = 0.05):
+    """This function adjusts calculated costs values to include inflation.
+
+    A 5% year on year inflation rate is referenced from the excel version of the tool.
+    
+    To calculate the inflated value of num in time t, considering infl_rate year on year inflation, 
+    rate = year_rate * number_of_years
+    fractional_increase = num * rate
+    inflated_value = num + fractional_increase"""
+
+    # daily inflation multiplied by number of days considered gives the inflation observed in the time period.
+    inflation_daily = (inflation_rate/365)
+    day_diffs = pd.Series((costed_df.index-costed_df.index[0]).days, index=costed_df.index)
+    inflation_rates = day_diffs*inflation_daily
+    # calculate the fractional increases for each value
+    rated_df = costed_df.copy().mul(day_diffs, axis='index')
+    # add the fractional increases to the parent values.
+    inflated_df = rated_df + costed_df
+    
+    return inflated_df
+
 def create_cost_ts(df_made, location_costs, step_size, inflation = False):
     '''
     This function calculates the cost over time for each placement location in each placement type.
 
+    # Structures of expected parameters.
     location_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, }, 'Supported' : {'Sup': 40,}}
     '''
     ind_lst = [[],[]]
@@ -96,13 +118,13 @@ def create_cost_ts(df_made, location_costs, step_size, inflation = False):
     cols = pd.MultiIndex.from_arrays(ind_lst, names = ['placement_types', 'placement_locations'])
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
     cost_structure = pd.DataFrame(index =  df_made.index, columns = cols)
-    if inflation == False:
-        cost_structure.loc[ : , : ] = vals_lst
-    elif inflation == True:
-        pass
+    cost_structure.loc[ : , : ] = vals_lst
     costed_df = df_made.multiply(cost_structure)
-
-    return costed_df
+    if inflation == False:
+        return costed_df
+    elif inflation == True:
+        inflated_df = include_inflation(costed_df, inflation_rate = 0.05)
+        return inflated_df
 
 def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = False):
     """

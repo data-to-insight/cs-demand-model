@@ -71,7 +71,8 @@ proportions = {'Foster': {'friend_relative': 0.5, 'in_house': 0.2, 'IFA': 0.3, }
                 'Supported' : {'Sup': 1,},
                 'Other': {'secure_home': 0.7, 'with_family':0.1, 'any_other':0.2}}
 
-scenario_costs = calculate_costs(df_future=grouped_df, cost_dict= cost_dict, proportions=proportions, step_size=step_size, inflation = False)
+scenario_costs = calculate_costs(df_future=grouped_df, cost_dict= cost_dict, proportions=proportions, 
+                                    step_size=step_size, inflation = True)
 base_costs = scenario_costs['base']
 
 print("#"*30)
