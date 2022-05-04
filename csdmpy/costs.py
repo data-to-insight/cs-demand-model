@@ -138,7 +138,7 @@ def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=Non
         return costed_df
 
 
-def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=False):
+def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None):
     """
     The expected shape of cost_dict is 
     cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}
