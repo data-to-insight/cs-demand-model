@@ -31,7 +31,8 @@ placement_type      Foster       Resi  Supported
 ## FRONTEND CHECK / INGRESS ADDITION: all percentages/numbers should be converted to a fraction of the total.
 ## FRONTEND : All costs received from the user should be weekly costs.
 
-def proportion_split(df, proportions):
+
+def proportion_split(df, all_proportions):
     """
     This function splits the populations in the various placement types into placement locations.
     It shows how many children will be in each placement location.
@@ -42,23 +43,29 @@ def proportion_split(df, proportions):
 
     Supported is intentionally left out of proportions to demonstrate what happens when a column name is missing.
     """
+
+    # make sure they sum to 1.0
+    for category, ratios in all_proportions.items():
+        if sum(ratios.values()) != 1.0:
+            subcategories = tuple(ratios.keys())
+            raise ValueError(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%')
+
     # copy over the date values contained in the index.
-    df_made = pd.DataFrame(index =  df.index)
+    df_made = pd.DataFrame(index=df.index)
     # create array structure that will be used to form a MultiIndex for the DataFrame columns.
-    index_list = [[],[]]
+    index_list = []
 
     for col in df.columns:
         # for each column        
-        if col not in proportions:
+        if col not in all_proportions:
             # if no split is filled in by the user, add column name to proportions data but do not split.
             # This is because, in the excel sheet, Supported placements are not split.
-            proportions[col] = {col: 1.0}
+            all_proportions[col] = {col: 1.0}
         # Get proportions dictionary. Use .get() so that missing columns return None instead of raising an error.
-        proportion_dict = proportions.get(col)
-        if proportion_dict != None:
+        proportion_dict = all_proportions.get(col)
+        if proportion_dict is not None:
             for name, value in proportion_dict.items():
-                index_list[0].append(col)
-                index_list[1].append(name)
+                index_list.append([col, name])
                 # create a new column to contain the proportion's values and maintain the name of the proportion.
                 '''TODO Make sure placement locations with the same name do not override themselves here. 
                     e.g in_house which is present in both Foster and Residential '''
@@ -66,18 +73,21 @@ def proportion_split(df, proportions):
     # create MultiIndex that will be used to replace column names.
     print(df_made.columns)
     print(index_list)
-    df_made.columns = pd.MultiIndex.from_arrays(index_list, names = ['placement_types', 'placement_locations'])
+    df_made.columns = pd.MultiIndex.from_tuples(index_list, names=['placement_type', 'cost_category'])
     return df_made
+
 
 def get_step_costs(weekly_costs, step_size):
     """This function cummulates the weekly costs given by the user"""
+    # TODO: use ts_info['step_days']
 
     days = step_to_days(step_size)
     daily_costs = np.array(weekly_costs) / 7
     step_costs = daily_costs * days
     return step_costs
 
-def include_inflation(costed_df, inflation_rate = 0.05):
+
+def include_inflation(costed_df, inflation_rate=0.05):
     """This function adjusts calculated costs values to include inflation.
 
     A 5% year on year inflation rate is referenced from the excel version of the tool.
@@ -88,45 +98,47 @@ def include_inflation(costed_df, inflation_rate = 0.05):
     inflated_value = num + fractional_increase"""
 
     # daily inflation multiplied by number of days considered gives the inflation observed in the time period.
-    inflation_daily = (inflation_rate/365)
-    day_diffs = pd.Series((costed_df.index-costed_df.index[0]).days, index=costed_df.index)
-    inflation_rates = day_diffs*inflation_daily
-    # calculate the fractional increases for each value
-    rated_df = costed_df.copy().mul(day_diffs, axis='index')
-    # add the fractional increases to the parent values.
-    inflated_df = rated_df + costed_df
-    
-    return inflated_df
+    day_diffs = pd.Series((costed_df.index - costed_df.index[0]).days, index=costed_df.index)
 
-def create_cost_ts(df_made, location_costs, step_size, inflation = False):
+    # calculate the fractional increases for each value
+    cumulative_inflation = (1 + inflation_rate) ** (day_diffs / 365.25)
+
+    # apply the inflation to the costs
+    inflated_costs = costed_df.mul(cumulative_inflation, axis='index')
+
+    return inflated_costs
+
+
+def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=None):
     '''
-    This function calculates the cost over time for each placement location in each placement type.
+    This function calculates the cost over time for each placement subcategory in each placement type.
 
     # Structures of expected parameters.
     location_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, }, 'Supported' : {'Sup': 40,}}
     '''
-    ind_lst = [[],[]]
-    vals_lst = []
+    ind_list = []
+    vals_list = []
     for placement_type in location_costs:
-        
-        for location, value in location_costs[placement_type].items():
-            ind_lst[0].append(placement_type)
-            ind_lst[1].append(location)
-            vals_lst.append(value)
-    vals_lst = get_step_costs(vals_lst, step_size)
+        for subcategory, value in location_costs[placement_type].items():
+            ind_list.append([placement_type, subcategory])
+            vals_list.append(value)
+    vals_list = get_step_costs(vals_list, step_size)
 
-    cols = pd.MultiIndex.from_arrays(ind_lst, names = ['placement_types', 'placement_locations'])
+    cols = pd.MultiIndex.from_tuples(ind_list, names=['placement_type', 'cost_category'])
+
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
-    cost_structure = pd.DataFrame(index =  df_made.index, columns = cols)
-    cost_structure.loc[ : , : ] = vals_lst
-    costed_df = df_made.multiply(cost_structure)
-    if inflation == False:
-        return costed_df
-    elif inflation == True:
-        inflated_df = include_inflation(costed_df, inflation_rate = 0.05)
-        return inflated_df
+    cost_structure = pd.DataFrame(index=subcategory_pops_ts.index, columns=cols)
+    cost_structure.loc[:, :] = vals_list
+    costed_df = subcategory_pops_ts.multiply(cost_structure)
 
-def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = False):
+    if inflation:
+        inflated_df = include_inflation(costed_df, inflation_rate=inflation)
+        return inflated_df
+    else:
+        return costed_df
+
+
+def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=False):
     """
     The expected shape of cost_dict is 
     cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}
@@ -137,7 +149,6 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = Fa
     The expected shape of proportions is the same as location_costs, however the numbers represent fractions/percentages
     of the population in each location type.
     """
-
     future_costs = {}
     proportioned_df = proportion_split(df_future, proportions)
     
@@ -145,8 +156,8 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation = Fa
         # Scenarios are base, adjusted
         location_costs = cost_dict[scenario]     
         # Get the costs over the specified time period.
-        cost_ts = create_cost_ts(df_made = proportioned_df, location_costs = location_costs, 
-                                    step_size = step_size, inflation = inflation)
+        cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=location_costs, step_size=step_size,
+                                 inflation=inflation)
         future_costs[scenario] = cost_ts
     
     return future_costs
