@@ -2,8 +2,9 @@ import pandas as pd
 from .config import ACCEPTED_DATE_FORMATS
 import os
 
+
 def ezfiles():
-    test_903_dir = os.path.join('csdmpy', 'tests', 'fake903_5yrs')
+    test_903_dir = os.path.join(os.path.dirname(__file__), 'tests', 'fake903_5yrs')
     year_list = [2017, 2018, 2019, 2020, 2021]
     tables_needed = ('header', 'episodes')
     table_headers = {
@@ -30,6 +31,7 @@ def split_age_bin(age_bin):
     lower = int(lower)
     upper = int(upper)
     return lower, upper
+
 
 def to_datetime(dates, date_formats=None):
     if not date_formats:

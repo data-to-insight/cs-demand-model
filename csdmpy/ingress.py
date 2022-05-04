@@ -172,6 +172,7 @@ def read_combined_903(combined):
 
     return combined
 
+
 def categorize_placement(code):
     if code in ['U1', 'U2', 'U3', 'U4', 'U5', 'U6']:
         return 'Foster'
@@ -181,7 +182,6 @@ def categorize_placement(code):
         return 'Supported'
     else:
         return 'Other'
-
 
 
 def get_daily_data(df, ):

@@ -11,9 +11,9 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     ts_info = make_date_index(end_date, horizon_date, step)
     future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index).sort_index()
 
-    print('* *][*][*] * * (( HISTORIC POPS ))')
+    print('* *][*][*] * * (( HISTORIC POPS ))\n')
     print(historic_pop.to_string())
-    print('[[*]] *]] * * * * (( FUTURE POPS ))')
+    print('[[*]] *]] * * * * (( FUTURE POPS ))\n')
     print(future_pop.to_string())
 
     # - - - - - -  SET UP THE MODEL  - - - - - -
@@ -29,7 +29,7 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
 
     entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
 
-    print(f'[*]] * ****%%%(( ENTRANTS )) for each category:\n')
+    print(f'[*]] * ****%%%(( ENTRANTS )) \n')
     for bracket, entra in entrance.items():
         print(str(bracket) + ':', entra, sep='\n')
 
@@ -46,8 +46,9 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
         next_pop = apply_ageing(next_pop, {'fake': 'fake',
                                            'records': 'records'})
         print('Moving children around...')
-        for ab in next_pop.index.get_level_values('age_bin').unique():
-            next_pop[ab] = precalced_transition_matrices[step_days][ab].dot(next_pop[ab]) + entrance[ab] * step_days
+        for age_bracket in next_pop.index.get_level_values('age_bin').unique():
+            T = precalced_transition_matrices[step_days][age_bracket]
+            next_pop[age_bracket] = T.dot(next_pop[age_bracket]) + entrance[age_bracket] * step_days
 
         future_pop.loc[date] = next_pop
 
@@ -56,7 +57,7 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
 
 def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
     # this makes a dict which maps the step_size in days to
-    # the dict of transition matrices for each age_bracket for that step_size
+    # the dict of transition matrices for each age_bracket for that many days
 
     # get the unique step sizes from smallest to largest
     unique_step_sizes = ts_info['step_days'].unique()
@@ -65,15 +66,28 @@ def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
     # start with the t_probs for one day then add those for each step size present in the time series
     matzo = {1: daily_t_probs}
     for step_days_value in unique_step_sizes:
-        prev_highest = max(matzo)
         step_size_t_probs = matzo[max(matzo)].copy()
-        for age_bracket in step_size_t_probs:  # this is good enough, shh
-            T = step_size_t_probs[age_bracket]
-            for i in range(step_days_value - max(matzo)):
+        prev_highest = max(matzo)
+        print('prev highest', prev_highest)
+        while max(matzo) < step_days_value:
+            A = max(i for i in matzo.keys() if i < step_days_value)
+            B = max(i for i in matzo.keys() if i + A <= step_days_value)
+            A_mats = matzo[A]
+            B_mats = matzo[B]
+            print(f'{A}, {B}: {step_days_value}')
+            for age_bracket in step_size_t_probs:
+                T = A_mats[age_bracket].dot(B_mats[age_bracket])
+                step_size_t_probs[age_bracket] = T
+            matzo[A + B] = step_size_t_probs
+    return {i: matzo[i] for i in unique_step_sizes}
+    #        T = step_size_t_probs[age_bracket].copy()
+    """"        for i in range((step_days_value - max(matzo))):
                 T = T.dot(daily_t_probs[age_bracket])
-            step_size_t_probs[age_bracket] = T
-        matzo[step_days_value] = step_size_t_probs
-    return matzo
+                assert all(T == T2)
+                step_size_t_probs[age_bracket] = T
+    "        matzo[step_days_value] = step_size_t_probs
+    """
+    #return matzo
 
 
 def apply_ageing(pop, ageing_dict):
