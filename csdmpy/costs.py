@@ -134,8 +134,8 @@ def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=Non
     if inflation:
         inflated_df = include_inflation(costed_df, inflation_rate=inflation)
         return inflated_df
-    else:
-        return costed_df
+        
+    return costed_df
 
 
 def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None):
