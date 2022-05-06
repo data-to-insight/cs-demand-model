@@ -27,6 +27,24 @@ def dummy_data_5_eps():
     for col in ['DECOM', 'DEC', 'DOB']:
         df[col] = pd.to_datetime(df[col], format='%d/%m/%Y')
     return df
+
+@pytest.fixture(scope='session')
+def dummy_entrant_eps():
+    df = pd.DataFrame([
+        {'CHILD': 111, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983', 'placement_type': 'Foster', 'placement_type_before':'Foster', 'placement_type_after':'Not in care',},  # foster
+        {'CHILD': 111, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'K2', 'DOB': '10/05/1983', 'placement_type': 'Resi', 'placement_type_before':'Foster', 'placement_type_after':'Not in care',},  # resi
+
+        {'CHILD': 222, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U1', 'DOB': '10/05/1983', 'placement_type': 'Foster', 'placement_type_before':'Not in care', 'placement_type_after':'Not in care',},  # foster
+
+        {'CHILD': 333, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'U2', 'DOB': '10/05/1983', 'placement_type': 'Foster', 'placement_type_before':'Not in care', 'placement_type_after':'Not in care',},  # foster
+        {'CHILD': 333, 'DECOM': '20/05/2000', 'DEC': '22/05/2000', 'PLACE': 'H5', 'DOB': '10/05/1983', 'placement_type': 'Supported', 'placement_type_before':'Foster', 'placement_type_after':'Not in care',},  # supported
+
+        {'CHILD': 222, 'DECOM': '18/05/2000', 'DEC': '20/05/2000', 'PLACE': 'H5', 'DOB': '10/05/1983', 'placement_type': 'Supported', 'placement_type_before':'Not in care', 'placement_type_after':'Not in care',},  # supported
+    ])
+    for col in ['DECOM', 'DEC', 'DOB']:
+        df[col] = pd.to_datetime(df[col], format='%d/%m/%Y')
+    return df
+
 """
 fake_df2
 3 children who change their placement types within a 10-day period. 
