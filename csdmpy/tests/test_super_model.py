@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days
+from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket
 
 def test_get_daily_entrants(dummy_entrant_eps):
     cat_list = ('Foster', 'Resi', 'Supported', 'Other')
@@ -29,3 +29,14 @@ def test_step_to_days():
 
     days = step_to_days(step_size='5d')
     assert days == 5
+
+def test_transition_probs_per_bracket(dummy_entrant_eps, dummy_age_brackets):
+    tran_probs = transition_probs_per_bracket(df=dummy_entrant_eps, bin_defs=dummy_age_brackets, start_date='18/05/2000', end_date='22/05/2000')
+    # Check that a dictionary of DataFrames is generated.
+    assert isinstance(tran_probs, dict)
+    assert isinstance(tran_probs['10 to 16'], pd.DataFrame)
+
+    # Check values.
+    dfa = tran_probs['16 to 18']
+    assert dfa.loc['Supported', 'Foster'].round(decimals=3) == 0.167
+    assert dfa.loc[:, 'Foster'].round(decimals=3).tolist() == [0.833, 0.0, 0.167]
