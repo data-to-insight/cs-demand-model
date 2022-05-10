@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket
+from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket, daily_entrants_per_bracket
 
 def test_get_daily_entrants(dummy_entrant_eps):
     cat_list = ('Foster', 'Resi', 'Supported', 'Other')
@@ -40,3 +40,12 @@ def test_transition_probs_per_bracket(dummy_entrant_eps, dummy_age_brackets):
     dfa = tran_probs['16 to 18']
     assert dfa.loc['Supported', 'Foster'].round(decimals=3) == 0.167
     assert dfa.loc[:, 'Foster'].round(decimals=3).tolist() == [0.833, 0.0, 0.167]
+
+def test_daily_entrants_per_bracket(dummy_entrant_eps, dummy_age_brackets):
+    ent_probs = daily_entrants_per_bracket(df=dummy_entrant_eps, bin_defs=dummy_age_brackets, start_date='18/05/2000', end_date='22/05/2000')
+    # check values calculated.
+    dfa = ent_probs['16 to 18']
+    assert ent_probs['16 to 18']['Foster'] == 0.25
+    # check data structure generated.
+    assert isinstance(ent_probs, dict)
+    assert ent_probs.keys() == dummy_age_brackets.keys()
