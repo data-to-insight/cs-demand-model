@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket, daily_entrants_per_bracket, ageing_probs_per_bracket
+from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket, daily_entrants_per_bracket, ageing_probs_per_bracket, make_populations_ts
 
 def test_get_daily_entrants(dummy_entrant_eps):
     cat_list = ('Foster', 'Resi', 'Supported', 'Other')
@@ -60,7 +60,7 @@ def test_ageing_probs_per_bracket(dummy_age_brackets):
     aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_size='4d')
     assert round(aging_matrix['1 to 5'], 3) == 0.003
 
-def calculate_timestep_transition_matrices(dummy_entrant_eps, dummy_age_brackets):
+def test_calculate_timestep_transition_matrices(dummy_entrant_eps, dummy_age_brackets):
     ts_info = make_date_index(start_date='22/05/2000', end_date='01/08/2003', step='5w')
     daily_t_probs = transition_probs_per_bracket(df=dummy_entrant_eps, bin_defs=dummy_age_brackets, start_date='18/05/2000', end_date='22/05/2000')
     result = calculate_timestep_transition_matrices(ts_info, daily_t_probs)
@@ -73,3 +73,10 @@ def calculate_timestep_transition_matrices(dummy_entrant_eps, dummy_age_brackets
 
     # check values generated
     assert result[35]['16 to 18'].loc['Supported'].round(decimals=4).tolist() == [0.0119, 0.0, 0.0017]
+
+def test_make_populations_ts(dummy_entrant_eps, dummy_age_brackets):
+    start, end = pd.to_datetime(['18/05/2000', '20/05/2000' ], format='%d/%m/%Y')
+    result = make_populations_ts(df=dummy_entrant_eps, bin_defs=dummy_age_brackets, start_date=start, end_date=end)
+    assert isinstance(result, pd.DataFrame)
+    ## TODO check validity of values generated
+    # assert result.loc['2000-05-20'][0] ==1
