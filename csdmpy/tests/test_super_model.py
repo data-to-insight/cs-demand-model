@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket, daily_entrants_per_bracket
+from csdmpy.super_model import get_daily_entrants, get_daily_transition_rates, step_to_days, transition_probs_per_bracket, daily_entrants_per_bracket, ageing_probs_per_bracket
 
 def test_get_daily_entrants(dummy_entrant_eps):
     cat_list = ('Foster', 'Resi', 'Supported', 'Other')
@@ -49,3 +49,15 @@ def test_daily_entrants_per_bracket(dummy_entrant_eps, dummy_age_brackets):
     # check data structure generated.
     assert isinstance(ent_probs, dict)
     assert ent_probs.keys() == dummy_age_brackets.keys()
+
+def test_ageing_probs_per_bracket(dummy_age_brackets):
+    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_siz='3m')
+    # check data structure
+    assert isinstance(aging_matrix, dict)
+    # check values
+    assert round(aging_matrix['1 to 5'], 3) == 0.062
+    
+    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_siz='4d')
+    assert round(aging_matrix['1 to 5'], 3) == 0.003
+
+
