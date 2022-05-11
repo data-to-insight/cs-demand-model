@@ -51,13 +51,25 @@ def test_daily_entrants_per_bracket(dummy_entrant_eps, dummy_age_brackets):
     assert ent_probs.keys() == dummy_age_brackets.keys()
 
 def test_ageing_probs_per_bracket(dummy_age_brackets):
-    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_siz='3m')
+    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_size='3m')
     # check data structure
     assert isinstance(aging_matrix, dict)
     # check values
     assert round(aging_matrix['1 to 5'], 3) == 0.062
-    
-    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_siz='4d')
+
+    aging_matrix = ageing_probs_per_bracket(dummy_age_brackets, step_size='4d')
     assert round(aging_matrix['1 to 5'], 3) == 0.003
 
+def calculate_timestep_transition_matrices(dummy_entrant_eps, dummy_age_brackets):
+    ts_info = make_date_index(start_date='22/05/2000', end_date='01/08/2003', step='5w')
+    daily_t_probs = transition_probs_per_bracket(df=dummy_entrant_eps, bin_defs=dummy_age_brackets, start_date='18/05/2000', end_date='22/05/2000')
+    result = calculate_timestep_transition_matrices(ts_info, daily_t_probs)
+    # check data structure generated.
+    assert isinstance(result, dict)
+    # first and second outer layers should be dictionaries.
+    assert isinstance(result[1], dict)
+    # third layer in should be a DataFrame.
+    assert isinstance(result[35]['16 to 18'], pd.DataFrame())
 
+    # check values generated
+    assert result[35]['16 to 18'].loc['Supported'].round(decimals=4).tolist() == [0.0119, 0.0, 0.0017]
