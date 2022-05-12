@@ -53,7 +53,7 @@ def to_datetime(dates, date_formats=None):
     return dates
 
 
-def make_date_index(start_date, end_date, step_size):
+def make_date_index(start_date, end_date, step_size, align_end=False):
     start_date, end_date = to_datetime([start_date, end_date])
     date_units = {'d': 'days',
                   'w': 'weeks',
@@ -65,11 +65,19 @@ def make_date_index(start_date, end_date, step_size):
     step_off = pd.DateOffset(**{unit: count})
 
     ts_info = pd.DataFrame(columns=['step_days'])
-    date = end_date
-    while date >= start_date:
-        ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
-        date -= step_off
-    return ts_info
+
+    if align_end:
+        date = end_date
+        while date >= start_date:
+            ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
+            date -= step_off
+    else:
+        date = start_date
+        while date <= end_date:
+            ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
+            date += step_off
+
+    return ts_info.sort_index()
 
 
 def truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC', close=False, clip=False):

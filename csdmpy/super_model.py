@@ -8,8 +8,8 @@ def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_
     # - - - - - -  CREATE POPULATION DATAFRAMES  - - - - - -
     historic_pop = make_populations_ts(df, bin_defs, start_date, end_date).sort_index()
 
-    ts_info = make_date_index(end_date, horizon_date, step)
-    future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index).sort_index()
+    ts_info = make_date_index(end_date, horizon_date, step, align_end=False).iloc[1:]
+    future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index)
 
     print('* *][*][*] * * (( HISTORIC POPS ))\n')
     print(historic_pop.to_string())
@@ -80,14 +80,6 @@ def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
                 step_size_t_probs[age_bracket] = T
             matzo[A + B] = step_size_t_probs
     return {i: matzo[i] for i in unique_step_sizes}
-    #        T = step_size_t_probs[age_bracket].copy()
-    """"        for i in range((step_days_value - max(matzo))):
-                T = T.dot(daily_t_probs[age_bracket])
-                assert all(T == T2)
-                step_size_t_probs[age_bracket] = T
-    "        matzo[step_days_value] = step_size_t_probs
-    """
-    #return matzo
 
 
 def apply_ageing(pop, ageing_dict):
@@ -156,7 +148,7 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
     start_date, end_date = to_datetime([start_date, end_date])
     df = truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC')
 
-    ts_info = make_date_index(start_date, end_date, step_size)
+    ts_info = make_date_index(start_date, end_date, step_size, align_end=True)
     pops_ts = pd.Series(data=ts_info.index,
                         index=ts_info.index)
 
