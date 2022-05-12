@@ -136,7 +136,8 @@ def create_cost_ts(df_made, location_costs, step_size, inflation=None):
         return costed_df
 
 
-def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=False):
+
+def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None):
     """
     The expected shape of cost_dict is 
     cost_dict = {'base': base_costs, 'adjusted': adjusted_costs}
@@ -154,8 +155,8 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=Fals
         # Scenarios are base, adjusted
         location_costs = cost_dict[scenario]     
         # Get the costs over the specified time period.
-        cost_ts = create_cost_ts(df_made=proportioned_df, location_costs=location_costs,
-                                 step_size=step_size, inflation=inflation)
+        cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=location_costs, step_size=step_size,
+                                 inflation=inflation)
         future_costs[scenario] = cost_ts
     
     return future_costs
