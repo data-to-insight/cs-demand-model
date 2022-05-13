@@ -28,6 +28,7 @@ step_size = '4m'
 
 cost_params = {'cost_dict': cost_dict,
                'proportions': proportions,
+               'inflation': 0.2,
                'step_size': step_size}
 
 df = the_ingress_procedure(ezfiles())
@@ -38,8 +39,10 @@ model.do_everything()
 
 print(model.step_probs.keys())
 
-p = pd.concat([model.historic_pop, model.future_pop]).plot()
-print(p.to_string())
+all_pops = pd.concat([model.historic_pop, model.future_pop])
+print(all_pops.to_string())
+
+p = all_pops.plot()
 p.axvline(end, ls=':', c='g')
 
 pp.show()
