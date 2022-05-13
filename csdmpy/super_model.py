@@ -203,7 +203,7 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
     df = truncate(df, start_date, end_date, s_col, e_col, close=True, clip=True)
 
     # calculate daily probability of transitioning to each placement type
-    df['duration'] = (df[e_col] - df[s_col]).dt.days.sum()
+    df['duration'] = (df[e_col] - df[s_col]).dt.days
     total_placement_days = df.groupby(cat_col)['duration'].sum()
 
     # number of transitions to each placement type

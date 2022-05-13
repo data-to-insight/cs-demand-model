@@ -107,7 +107,7 @@ def include_inflation(costed_df, inflation_rate=0.05):
     return inflated_costs
 
 
-def create_cost_ts(df_made, location_costs, step_size, inflation=None):
+def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=None):
     '''
     This function calculates the cost over time for each placement subcategory in each placement type.
 
@@ -125,9 +125,9 @@ def create_cost_ts(df_made, location_costs, step_size, inflation=None):
     cols = pd.MultiIndex.from_tuples(ind_list, names=['placement_type', 'cost_category'])
 
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
-    cost_structure = pd.DataFrame(index=df_made.index, columns=cols)
+    cost_structure = pd.DataFrame(index=subcategory_pops_ts.index, columns=cols)
     cost_structure.loc[:, :] = vals_list
-    costed_df = df_made.multiply(cost_structure)
+    costed_df = subcategory_pops_ts.multiply(cost_structure)
 
     if inflation:
         inflated_df = include_inflation(costed_df, inflation_rate=inflation)
