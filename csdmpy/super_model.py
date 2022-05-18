@@ -4,57 +4,6 @@ from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_ag
 from csdmpy.config import age_brackets as bin_defs
 
 
-def the_model_itself(df, start_date, end_date, horizon_date, step, bin_defs=bin_defs):
-    # - - - - - -  CREATE POPULATION DATAFRAMES  - - - - - -
-    historic_pop = make_populations_ts(df, bin_defs, start_date, end_date).sort_index()
-
-    ts_info = make_date_index(end_date, horizon_date, step, align_end=False).iloc[1:]
-    future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index)
-
-    print('* *][*][*] * * (( HISTORIC POPS ))\n')
-    print(historic_pop.to_string())
-    print('[[*]] *]] * * * * (( FUTURE POPS ))\n')
-    print(future_pop.to_string())
-
-    # - - - - - -  SET UP THE MODEL  - - - - - -
-
-    t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
-
-    print('[[[*] * * * * (( TRANS PROBS ))\n')
-
-    for bracket, t_mat in t_probs.items():
-        print(str(bracket) + ':', t_mat, sep='\n')
-
-    precalced_transition_matrices = calculate_timestep_transition_matrices(ts_info, t_probs)
-
-    entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
-
-    print(f'[*]] * ****%%%(( ENTRANTS )) \n')
-    for bracket, entra in entrance.items():
-        print(str(bracket) + ':', entra, sep='\n')
-
-    next_pop = historic_pop.loc[historic_pop.index.max()].copy()
-
-    print(f'* * >>>> * * (( INITIAL POP ))\n{next_pop.to_string()}')
-
-    # - - - - - -  RUN THE MODEL  - - - - - -
-
-    for date in future_pop.index:
-        step_days = ts_info.loc[date, 'step_days']
-        print(f"* * * * * * * * {date} ")
-        print('Making children older...')
-        next_pop = apply_ageing(next_pop, {'fake': 'fake',
-                                           'records': 'records'})
-        print('Moving children around...')
-        for age_bracket in next_pop.index.get_level_values('age_bin').unique():
-            T = precalced_transition_matrices[step_days][age_bracket]
-            next_pop[age_bracket] = T.dot(next_pop[age_bracket]) + entrance[age_bracket] * step_days
-
-        future_pop.loc[date] = next_pop
-
-    return historic_pop, future_pop  # now we can convert these to csv/whatever and send to the frontend
-
-
 def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
     # this makes a dict which maps the step_size in days to
     # the dict of transition matrices for each age_bracket for that many days
