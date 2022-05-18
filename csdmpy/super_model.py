@@ -105,21 +105,24 @@ def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_
                                           .groupby(['age_bin', cat_col])
                                           .size()))
 
-    mind = pd.MultiIndex.from_tuples([(age_bin, place)
-                                      for age_bin, place_list in bin_defs.items() for place in place_list])
+    multi_ind = pd.MultiIndex.from_tuples([(age_bin, place)
+                                      for age_bin, place_list in bin_defs.items() for place in place_list], names=('age_bin', 'placement_type'))
 
-    discard_cols = set(pops_ts.columns) - set(mind)
-    print('>discarding: ', discard_cols)
-    add_cols = set(mind) - set(pops_ts.columns)
-    print('>adding: ', add_cols)
-    pops_ts = pops_ts.drop(columns=discard_cols)
-    for col in add_cols:
-        pops_ts[col] = 0
-    pops_ts = pops_ts.fillna(0)
+    # create a superset DataFrame that has all the possible column names (placement_type - age_bin combinations)
+    populations_ts = pd.DataFrame(index=pops_ts.index, columns=multi_ind)
+    populations_ts.update(pops_ts)
 
-    print(pops_ts.to_string())
+    """
+    - columns which are only present in pops_ts will be ignored. There is no longer need to explicitly discard.
+    - all columns needed would have been created in populations_ts. There is no longer need to explicitly add.
+    - the fillna will assign all missing values to zero. There is no longer need to do this for the extra columns.
+    - The DataFrame generated will have all column names (age bins) in natural order.
+    """
+    populations_ts.fillna(0, inplace=True)
 
-    return pops_ts
+    print(populations_ts.to_string())
+
+    return populations_ts
 
 
 def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None,
