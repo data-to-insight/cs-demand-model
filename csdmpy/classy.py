@@ -37,7 +37,8 @@ class Model:
         self.set_up_time_series()
         self.measure_system()
         self.predict()
-        self.calculate_costs()
+        if self.cost_params:
+            self.calculate_costs()
         self.need_to_rerun = False
 
     def set_up_time_series(self):
@@ -45,7 +46,6 @@ class Model:
             = self.df, self.bin_defs, self.start_date, self.end_date, self.horizon_date, self.step_size
 
         historic_pop = make_populations_ts(df, bin_defs, start_date, end_date, step_size).sort_index()
-
         ts_info = make_date_index(end_date, horizon_date, step_size, align_end=False).iloc[1:]
         future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index)
 
@@ -118,3 +118,16 @@ class Model:
     def update_params(self, params):
         self.__init__(**params)
         self.need_to_rerun = True
+
+    @property
+    def pop_graphs(self):
+        df = pd.concat([self.historic_pop, self.future_pop])
+        forecast_start_date = self.end_date
+
+        lines_dict = {
+            col[0]+' - '+col[1]:  {'x': list(range(len(df.index.strftime('%Y-%m-%d').to_list()))),
+                                  'y': df[col].fillna(-1).to_list(),
+                                  'type': 'scatter',}
+            for col in df
+        }
+        return lines_dict
