@@ -149,6 +149,9 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None
     of the population in each location type.
     """
     future_costs = {}
+    # Group the data by placement type such that the population is no longer split by age.
+    df_future = df_future.groupby(level=1, axis=1).sum()
+
     proportioned_df = proportion_split(df_future, proportions)
     
     for scenario in cost_dict:
