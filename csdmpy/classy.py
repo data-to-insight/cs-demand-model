@@ -60,6 +60,9 @@ class Model:
         self.initial_pop = initial_pop
         self.future_pop = future_pop
 
+        self.past_costs = None
+        self.future_costs = None
+
     def measure_system(self):
         df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.start_date, self.end_date, self.ts_info
 
@@ -114,6 +117,11 @@ class Model:
         past_cost_params = cost_params.copy()
         past_cost_params['inflation'] = None
         past_costs = calculate_costs(self.historic_pop, **cost_params)
+        print(' = = = = #######################  = = = = ')
+        print(type(past_costs))
+        print(past_costs)
+        self.past_costs = past_costs['base']
+        self.future_costs = future_costs['base']
 
     def update_params(self, params):
         self.__init__(**params)
@@ -124,10 +132,55 @@ class Model:
         df = pd.concat([self.historic_pop, self.future_pop])
         forecast_start_date = self.end_date
 
-        lines_dict = {
-            col[0]+' - '+col[1]:  {'x': list(range(len(df.index.strftime('%Y-%m-%d').to_list()))),
-                                  'y': df[col].fillna(-1).to_list(),
-                                  'type': 'scatter',}
-            for col in df
-        }
-        return lines_dict
+        # fragile container of trace objects to be drawn by plotly.js
+        tracey_beaker = [
+            {
+                'x': df.index.strftime('%Y-%m-%d').to_list(),
+                'y': df[col].fillna(-1).to_list(),
+                'type': 'scatter',
+                'name': ' - '.join(col)
+             } for col in df
+        ]
+
+        # noinspection PyTypeChecker
+        tracey_beaker.append(
+            {'x': [self.end_date.strftime('%Y-%m-%d')] * 2,
+             'y': [0, df.max().max()],
+             'type': 'scatter',
+             'line': {'dash': 'dot',
+                      'width': 2},
+             'mode': 'lines',
+             'name': 'Forecast start'}
+        )
+
+        print('tracey:', *tracey_beaker)
+        return tracey_beaker
+
+    @property
+    def cost_graphs(self):
+        df = pd.concat([self.past_costs, self.future_costs])
+        forecast_start_date = self.end_date
+
+        # fragile container of trace objects to be drawn by plotly.js
+        tracey_beaker = [
+            {
+                'x': df.index.strftime('%Y-%m-%d').to_list(),
+                'y': df[col].fillna(-1).to_list(),
+                'type': 'scatter',
+                'name': ' - '.join(col)
+             } for col in df
+        ]
+
+        tracey_beaker.append(
+            {'x': [self.end_date.strftime('%Y-%m-%d'), ] * 2,
+             'y': [0, df.max().max()],
+             'type': 'scatter',
+             'line': {'dash': 'dot',
+                      'width': 2},
+             'mode': 'lines',
+             'name': 'Forecast start'}
+        )
+
+        print('tracey:', *tracey_beaker)
+        return tracey_beaker
+
