@@ -33,6 +33,7 @@ class Model:
         self.daily_probs = None
         self.step_probs = None
         self.entrant_rates = None
+        self.pop_variance = None
 
         if cost_params:
             self.cost_params = cost_params
@@ -122,6 +123,10 @@ class Model:
         precalced_transition_matrices = self.step_probs
         entrant_rates = self.entrant_rates
         next_pop = self.initial_pop
+
+        pop_variance = pd.DataFrame(index=future_pop.index, columns=future_pop.columns)
+        var_structure = next_pop.copy()
+
         for date in future_pop.index:
             step_days = ts_info.loc[date, "step_days"]
             print(f"* * * * * * * * {date} ")
@@ -130,14 +135,27 @@ class Model:
             print("Moving children around...")
             for age_bracket in next_pop.index.get_level_values("age_bin").unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
+
+                
+                one_minusT = 1 - T.copy()
+                T_mult = T.copy().multiply(one_minusT)
+
                 next_pop[age_bracket] = (
                     T.dot(next_pop[age_bracket])
                     + entrant_rates[age_bracket] * step_days
                 )
 
+                # The formula for calculating variance at any given time is Var[S(t)] =  (T x (1 – T)) * reference_pop + (entrant_rates * t )
+                var_structure[age_bracket] = (
+                    T_mult.dot(next_pop[age_bracket])
+                    + entrant_rates[age_bracket] * step_days
+                ) 
+
             future_pop.loc[date] = next_pop
+            pop_variance.loc[date] = var_structure
 
         self.future_pop = future_pop  # now we can convert these to csv/whatever and send to the frontend
+        self.pop_variance = pop_variance
 
     def calculate_costs(self, cost_params=None):
         if cost_params:
