@@ -108,3 +108,20 @@ def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_c
         if retrospective_cols:
             df.loc[(df[e_col] > t), retrospective_cols] = pd.NA
     return df
+
+def deviation_bounds(data, variance_values):
+    """
+    This function calculates the uppper and lower bounds of data adding and subtracting 1 standard deviation to the data respectively. """
+    # standard deviation = square_root(sum_of_variances)
+    var_sums = variance_values.sum(axis=1)
+    standard_deviations = var_sums.apply('sqrt')
+    
+    upper_values = data.copy()
+    lower_values = data.copy()
+    for column_name in data.columns:
+        upper_values[column_name] = upper_values[column_name] + standard_deviations[column_name]
+        lower_values[column_name] = lower_values[column_name] - standard_deviations[column_name]
+
+    return upper_values, lower_values
+
+

@@ -1,6 +1,7 @@
 import pandas as np
 import numpy as np
 from csdmpy.super_model import *
+from csdmpy.utils import deviation_bounds
 
 # from ingress import ...
 from csdmpy.costs import calculate_costs
@@ -28,12 +29,13 @@ class Model:
         self.ts_info = None
         self.historic_pop = None
         self.future_pop = None
+        self.lower_pop = None
+        self.upper_pop = None
         self.initial_pop = None
 
         self.daily_probs = None
         self.step_probs = None
         self.entrant_rates = None
-        self.pop_variance = None
 
         if cost_params:
             self.cost_params = cost_params
@@ -154,8 +156,9 @@ class Model:
             future_pop.loc[date] = next_pop
             pop_variance.loc[date] = var_structure
 
+        self.upper_pop, self.lower_pop = deviation_bounds(future_pop, pop_variance)
+
         self.future_pop = future_pop  # now we can convert these to csv/whatever and send to the frontend
-        self.pop_variance = pop_variance
 
     def calculate_costs(self, cost_params=None):
         if cost_params:

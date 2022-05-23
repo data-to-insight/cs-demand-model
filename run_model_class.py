@@ -68,6 +68,10 @@ print(model.step_probs.keys())
 all_pops = pd.concat([model.historic_pop, model.future_pop])
 print(all_pops.to_string())
 
+print(model.upper_pop.to_string())
+print("*"*100)
+print(model.lower_pop.to_string())
+
 p = all_pops.plot()
 p.axvline(end, ls=":", c="g")
 
