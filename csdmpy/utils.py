@@ -110,8 +110,8 @@ def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_c
     return df
 
 def deviation_bounds(data, variance_values):
-    """
-    This function calculates the uppper and lower bounds of data adding and subtracting 1 standard deviation to the data respectively. """
+    """ This function adds and subtracts 1 standard deviation to calculate the uppper and lower bounds, respectively, of data provided to it.  """
+
     # get the average variance of each variable.
     var_sums = variance_values.mean(axis=0)
     # standard deviation = square_root(variances)
@@ -125,4 +125,25 @@ def deviation_bounds(data, variance_values):
 
     return upper_values, lower_values
 
+def _nest_dict_rec(key, value, out):
+    """ Recursive function that keeps splitting until all the nested values have been formed. """
+    
+    key, *everything_else = key.split('_', 1)
+    if everything_else:
+        _nest_dict_rec(everything_else[0], value, out.setdefault(key, {}))
+    else:
+        out[key] = value
+
+def flat_to_nested(flat_dict):
+    """This function converts flat dictionaries, provided by the frontend, into nested dictionaries which the backend needs."""
+
+    # specify the data type of the resulting nested structure.
+    result = {}
+    for key, value in flat_dict.items():
+        # categories that do not have any subkeys are provided subcategories of the same name.
+        # 'Supported': 40 becomes 'Supported':{'Supported': 40}
+        if '_' not in key:
+            key += '_' + key
+        _nest_dict_rec(key, value, result)
+    return result
 
