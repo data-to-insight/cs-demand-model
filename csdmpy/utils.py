@@ -112,9 +112,10 @@ def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_c
 def deviation_bounds(data, variance_values):
     """
     This function calculates the uppper and lower bounds of data adding and subtracting 1 standard deviation to the data respectively. """
-    # standard deviation = square_root(sum_of_variances)
-    var_sums = variance_values.sum(axis=1)
-    standard_deviations = var_sums.apply('sqrt')
+    # get the average variance of each variable.
+    var_sums = variance_values.mean(axis=0)
+    # standard deviation = square_root(variances)
+    standard_deviations = var_sums.apply(lambda x : x**0.5)
     
     upper_values = data.copy()
     lower_values = data.copy()

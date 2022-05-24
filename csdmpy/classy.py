@@ -126,7 +126,9 @@ class Model:
         entrant_rates = self.entrant_rates
         next_pop = self.initial_pop
 
+        # resulting data structure should be a DataFrame whose indices are identical to the forecast.
         pop_variance = pd.DataFrame(index=future_pop.index, columns=future_pop.columns)
+        # replicate the row structure which contains the variances per child group, per date point.
         var_structure = next_pop.copy()
 
         for date in future_pop.index:
@@ -138,8 +140,9 @@ class Model:
             for age_bracket in next_pop.index.get_level_values("age_bin").unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
 
-                
+                # (1 – T)
                 one_minusT = 1 - T.copy()
+                # T x (1 – T)
                 T_mult = T.copy().multiply(one_minusT)
 
                 next_pop[age_bracket] = (
@@ -148,8 +151,10 @@ class Model:
                 )
 
                 # The formula for calculating variance at any given time is Var[S(t)] =  (T x (1 – T)) * reference_pop + (entrant_rates * t )
+                # When both sides are not scalar, x denotes elementwise multiplication, * denotes matrix multiplication. The (1 – M^t) operation is also elementwise.
+                # elementwise: .multiply() , matrix multiplication : .dot()
                 var_structure[age_bracket] = (
-                    T_mult.dot(next_pop[age_bracket])
+                    T_mult.dot(var_structure[age_bracket])
                     + entrant_rates[age_bracket] * step_days
                 ) 
 
