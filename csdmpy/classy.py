@@ -6,14 +6,16 @@ from csdmpy.costs import calculate_costs
 
 
 class Model:
-    def __init__(self, df, start_date, end_date, horizon_date, step_size, bin_defs, cost_params=None):
+    def __init__(self, df, model_params, cost_params=None, adjustments=None):
         self.df = df
 
-        self.start_date = start_date
-        self.end_date = end_date
-        self.horizon_date = horizon_date
-        self.step_size = step_size
-        self.bin_defs = bin_defs
+        self.start_date = model_params['history_start']
+        self.ref_start = model_params['reference_start']
+        self.ref_end = model_params['reference_end']
+        self.end_date = model_params['history_end']
+        self.horizon_date = model_params['prediction_end']
+        self.step_size = model_params['step_size']
+        self.bin_defs = model_params['bin_defs']
 
         self.ts_info = None
         self.historic_pop = None
@@ -26,20 +28,20 @@ class Model:
 
         if cost_params:
             self.cost_params = cost_params
-            self.need_to_redo_costs = True
+            self.need_to_calculate_costs = True
         else:
             self.cost_params = None
+            self.need_to_calculate_costs = False
 
-        self.need_to_rerun = True  # if params are updated
+        self.need_to_run_model = True  # if params are updated
 
-    # todo:
     def do_everything(self):
         self.set_up_time_series()
         self.measure_system()
         self.predict()
         if self.cost_params:
             self.calculate_costs()
-        self.need_to_rerun = False
+        self.need_to_run_model = False
 
     def set_up_time_series(self):
         df, bin_defs, start_date, end_date, horizon_date, step_size \
@@ -64,7 +66,7 @@ class Model:
         self.future_costs = None
 
     def measure_system(self):
-        df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.start_date, self.end_date, self.ts_info
+        df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.ref_start, self.ref_end, self.ts_info
 
         t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
@@ -86,11 +88,12 @@ class Model:
         self.step_probs = precalced_transition_matrices
 
     def predict(self):
-        df, bin_defs, start_date, end_date, ts_info, future_pop \
-            = self.df, self.bin_defs, self.start_date, self.end_date, self.ts_info, self.future_pop
+        df, ts_info, future_pop = self.df, self.ts_info, self.future_pop
+
         precalced_transition_matrices = self.step_probs
         entrant_rates = self.entrant_rates
         next_pop = self.initial_pop
+
         for date in future_pop.index:
             step_days = ts_info.loc[date, 'step_days']
             print(f"* * * * * * * * {date} ")
@@ -106,13 +109,8 @@ class Model:
 
         self.future_pop = future_pop  # now we can convert these to csv/whatever and send to the frontend
 
-    def calculate_costs(self, cost_params=None):
-        if cost_params:
-            self.cost_params.update(cost_params)
-        elif self.cost_params:
-            cost_params = self.cost_params
-        else:
-            raise ValueError('No cost_params!!!')
+    def calculate_costs(self):
+        cost_params = self.cost_params
         future_costs = calculate_costs(self.future_pop, **cost_params)
         past_cost_params = cost_params.copy()
         past_cost_params['inflation'] = None
@@ -125,7 +123,10 @@ class Model:
 
     def update_params(self, params):
         self.__init__(**params)
-        self.need_to_rerun = True
+
+    def update_cost_params(self, cost_params):
+        self.cost_params.update(cost_params)
+        self.need_to_calculate_costs = True
 
     @property
     def pop_graphs(self):

@@ -32,7 +32,14 @@ cost_params = {'cost_dict': cost_dict,
                'step_size': step_size}
 
 df = the_ingress_procedure(ezfiles())
+model_params = {
+    'history_start'
+    'reference_start'
+    'reference_end'
+    'present_time'
+    'prediction_end'
 
+}
 model = Model(df, start, end, horizon, step_size, bin_defs, cost_params)
 
 model.do_everything()
