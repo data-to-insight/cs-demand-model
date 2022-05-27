@@ -19,16 +19,16 @@ age_brackets = {
     '16 to 18': ('Foster', 'Resi', 'Supported', 'Other'),
 }
 
-key_mapping_dict = {
-    'Fostering (friend/relative)': {'Fostering':{'friend/relative': None}},
-    'Fostering (in-house)': {'Fostering':{'in_house': None}},
-    'Fostering (IFA)': {'Fostering':{'IFA': None}},
-    'Residential (in-house)': {'Residential':{'in_houseR': None}},
-    'Residential (external)': {'Residential':{'external': None}},
-    'Supported': {'Supported':{'supported': None}},
-    'Secure home': {'Secure_home':{'secure_home': None}},
-    'Placed with family': {'With_family':{'with_family': None}},
-    'Other': {'Other':{'other': None}}'
+cost_params_map = {
+    'Fostering (friend/relative)': ('Fostering', 'friend/relative'),
+    'Fostering (in-house)': ('Fostering', 'in_houseF'),
+    'Fostering (IFA)': ('Fostering', 'IFA'),
+    'Residential (in-house)': ('Residential', 'in_houseR'),
+    'Residential (external)': ('Residential', 'external'),
+    'Supported': ('Supported', 'supported'),
+    'Secure home': ('Secure_home', 'secure_home'),
+    'Placed with family': ('With_family','with_family'),
+    'Other': ('Other','other')
 }
 # Conversion rules:
 # Outer keys start with a capital letter and inner keys are all lowercase.

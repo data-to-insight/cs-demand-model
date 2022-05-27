@@ -181,3 +181,35 @@ def param_handover(key_mapping_dict, param_dict):
     # separate them out into the cost values and the proportion values.
     # proportions: remove the proportion suffix 
     # both: assign the values and return the nested proportions and costs dictionaries and then everything that was not selected out of param_dict.
+
+flat_dict = {
+    'Fostering (friend/relative)': 11,
+    'Fostering (in-house)': 12,
+    'Fostering (IFA)': 13,
+    'Residential (in-house)': 14,
+    'Residential (external)': 15,
+    'Supported': 16,
+    'Secure home': 17,
+    'Placed with family': 18,
+    'Other': 19
+}
+
+
+def cost_translation(costs_input, proportions_input, mapping_dict):
+    costs_output = {}
+
+    def flat_to_nest(input, mapping_dict):
+        output = {}
+        for key, value in mapping_dict.items():
+            category, subcategory = value
+            if category in output:
+                output[category][subcategory] = input[key]
+            else:
+                output[category] = {}
+                output[category][subcategory] = input[key]
+        return output
+
+    costs_output = flat_to_nest(costs_input, mapping_dict)
+    proportions_output = flat_to_nest(proportions_input, mapping_dict)
+
+    return costs_output, proportions_output
