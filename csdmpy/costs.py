@@ -99,11 +99,9 @@ def include_inflation(costed_df, inflation_rate=0.05):
 
     # daily inflation multiplied by number of days considered gives the inflation observed in the time period.
     day_diffs = pd.Series((costed_df.index - costed_df.index[0]).days, index=costed_df.index)
-
-    # calculate the fractional increases for each value
     cumulative_inflation = (1 + inflation_rate) ** (day_diffs / 365.25)
 
-    # apply the inflation to the costs
+    # calculate the fractional increases for each value
     inflated_costs = costed_df.mul(cumulative_inflation, axis='index')
 
     return inflated_costs
@@ -134,8 +132,9 @@ def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=Non
     if inflation:
         inflated_df = include_inflation(costed_df, inflation_rate=inflation)
         return inflated_df
-        
-    return costed_df
+    else:
+        return costed_df
+
 
 
 def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None):
@@ -150,6 +149,9 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None
     of the population in each location type.
     """
     future_costs = {}
+    # Group the data by placement type such that the population is no longer split by age.
+    df_future = df_future.groupby(level=1, axis=1).sum()
+
     proportioned_df = proportion_split(df_future, proportions)
     
     for scenario in cost_dict:
