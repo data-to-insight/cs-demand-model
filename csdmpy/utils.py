@@ -108,3 +108,95 @@ def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_c
         if retrospective_cols:
             df.loc[(df[e_col] > t), retrospective_cols] = pd.NA
     return df
+
+def deviation_bounds(data, variance_values):
+    """ This function adds and subtracts 1 standard deviation to calculate the uppper and lower bounds, respectively, of data provided to it.  """
+
+    # get the average variance of each variable.
+    var_sums = variance_values.mean(axis=0)
+    # standard deviation = square_root(variances)
+    standard_deviations = var_sums.apply(lambda x : x**0.5)
+    
+    upper_values = data.copy()
+    lower_values = data.copy()
+    for column_name in data.columns:
+        upper_values[column_name] = upper_values[column_name] + standard_deviations[column_name]
+        lower_values[column_name] = lower_values[column_name] - standard_deviations[column_name]
+
+    return upper_values, lower_values
+
+def _nest_dict_rec(key, value, out):
+    """ Recursive function that keeps splitting until all the nested values have been formed. """
+    
+    key, *everything_else = key.split('_', 1)
+    if everything_else:
+        _nest_dict_rec(everything_else[0], value, out.setdefault(key, {}))
+    else:
+        out[key] = value
+
+def flat_to_nested(flat_dict):
+    """This function converts flat dictionaries, provided by the frontend, into nested dictionaries which the backend needs."""
+
+    # specify the data type of the resulting nested structure.
+    result = {}
+    for key, value in flat_dict.items():
+        # categories that do not have any subkeys are provided subcategories of the same name.
+        # 'Supported': 40 becomes 'Supported':{'Supported': 40}
+        if '_' not in key:
+            key += '_' + key
+        _nest_dict_rec(key, value, result)
+    return result
+
+def assign_value(nested_dict, val):
+    """ 
+    structure of parameters expected.
+    nested_dict =  {'Fostering': {'friend/relative': None}}
+    value = an integer e.g 17
+
+    function returns
+    {'Fostering': {'friend/relative': 17}}
+
+    """
+    for i, j in result.items():
+        # i is a key, j is a dictionary.
+        for k in j.keys():
+            # k is the key in the inner dictionary.
+            result[i][k] = val
+            break
+    return nested_dict
+    
+
+def param_handover(key_mapping_dict, param_dict):
+    """
+    ## Inputs
+    key_mapping_dict (dict mapping keys of param_dict to keys of costs_dict)
+    param_dict (flat dict containing (among other things) costs and proportions, for each subcategory)
+     
+    ## Returns.
+    costs_params (dict of params for calculate_costs  - cost_dict, proportions, , inflation (expect none, false, or float), step_size)
+
+    in addition to the subcateogries mentioned above, the param_dict will contain 'step_size', 'inflation', the subcategories proportions - probably the same as the category names but with `' proportion' at the end
+    """
+    # get all the keys in param_dict that match cost params in the key_mapping dict.
+    # separate them out into the cost values and the proportion values.
+    # proportions: remove the proportion suffix 
+    # both: assign the values and return the nested proportions and costs dictionaries and then everything that was not selected out of param_dict.
+
+def cost_translation(costs_input, proportions_input, mapping_dict):
+    costs_output = {}
+
+    def flat_to_nest(input, mapping_dict):
+        output = {}
+        for key, value in mapping_dict.items():
+            category, subcategory = value
+            if category in output:
+                output[category][subcategory] = input[key]
+            else:
+                output[category] = {}
+                output[category][subcategory] = input[key]
+        return output
+
+    costs_output = flat_to_nest(costs_input, mapping_dict)
+    proportions_output = flat_to_nest(proportions_input, mapping_dict)
+
+    return costs_output, proportions_output

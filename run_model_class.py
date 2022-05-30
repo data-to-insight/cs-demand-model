@@ -49,8 +49,6 @@ print(model.step_probs.keys())
 all_pops = pd.concat([model.historic_pop, model.future_pop])
 print(all_pops.to_string())
 
-print(pd.concat([model.past_costs, model.future_costs]).to_string())
-
 p = all_pops.plot()
 p.axvline(end, ls=':', c='g')
 

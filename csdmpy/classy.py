@@ -70,7 +70,7 @@ class Model:
 
         t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
-        print('[[[*] * * * * (( TRANS PROBS ))\n')
+        print("[[[*] * * * * (( TRANS PROBS ))\n")
 
         for bracket, t_mat in t_probs.items():
             print(str(bracket) + ':', t_mat, sep='\n')
@@ -79,9 +79,9 @@ class Model:
 
         entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
 
-        print(f'[*]] * ****%%%(( ENTRANTS )) \n')
+        print(f"[*]] * ****%%%(( ENTRANTS )) \n")
         for bracket, entrants_df in entrance.items():
-            print(str(bracket) + ':', entrants_df, sep='\n')
+            print(str(bracket) + ":", entrants_df, sep="\n")
         print(precalced_transition_matrices[max(precalced_transition_matrices)])
 
         self.entrant_rates = entrance
@@ -113,7 +113,7 @@ class Model:
         cost_params = self.cost_params
         future_costs = calculate_costs(self.future_pop, **cost_params)
         past_cost_params = cost_params.copy()
-        past_cost_params['inflation'] = None
+        past_cost_params["inflation"] = None
         past_costs = calculate_costs(self.historic_pop, **cost_params)
         print(' = = = = #######################  = = = = ')
         print(type(past_costs))
