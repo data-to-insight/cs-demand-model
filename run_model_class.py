@@ -1,51 +1,37 @@
 from csdmpy.classy import Model
-from csdmpy.utils import ezfiles
+from csdmpy.utils import ezfiles, cost_translation
+from csdmpy.config import cost_params_map
 from csdmpy.config import age_brackets as bin_defs
 from csdmpy.ingress import the_ingress_procedure
+from csdmpy.costs import calculate_costs
 import matplotlib.pyplot as pp
 import pandas as pd
 
-base_costs = {
-    "Foster": {
-        "friend_relative": 10,
-        "in_house": 20,
-        "IFA": 30,
-    },
-    "Resi": {"in_house1": 40, "external": 60},
-    "Supported": {
-        "Sup": 40,
-    },
-    "Other": {"secure_home": 150, "with_family": 30, "any_other": 40},
+flat_costs = {
+    'Fostering (friend/relative)': 10,
+    'Fostering (in-house)': 20,
+    'Fostering (IFA)': 50,
+    'Residential (in-house)': 60,
+    'Residential (external)': 70,
+    'Supported': 80,
+    'Other (secure-home)': 30,
+    'Other (placed-with-family)': 40,
+    'Other (other)': 90
 }
 
-adjusted_costs = {
-    "Foster": {
-        "friend_relative": 100,
-        "in_house": 200,
-        "IFA": 300,
-    },
-    "Resi": {"in_house1": 400, "external": 600},
-    "Supported": {
-        "Sup": 400,
-    },
-    "Other": {"secure_home": 1500, "with_family": 30, "any_other": 400},
+flat_proportions = {
+    'Fostering (friend/relative)': 0.5,
+    'Fostering (in-house)': 0.2,
+    'Fostering (IFA)': 0.3,
+    'Residential (in-house)': 0.4,
+    'Residential (external)': 0.6,
+    'Supported': 1,
+    'Other (secure-home)': 0.2,
+    'Other (placed-with-family)': 0.3,
+    'Other (other)': 0.5
 }
 
-cost_dict = {"base": base_costs}  # , 'adjusted': adjusted_costs}
-
-proportions = {
-    "Foster": {
-        "friend_relative": 0.5,
-        "in_house": 0.2,
-        "IFA": 0.3,
-    },
-    "Resi": {"in_house1": 0.4, "external": 0.6},
-    "Supported": {
-        "Sup": 1,
-    },
-    "Other": {"secure_home": 0.7, "with_family": 0.1, "any_other": 0.2},
-}
-
+cost_dict, proportions = cost_translation(flat_costs, flat_proportions, cost_params_map)
 
 start, end, horizon = pd.to_datetime(["2019-01-01", "2020-01-01", "2025-01-01"])
 step_size = "4m"
@@ -71,6 +57,10 @@ print(all_pops.to_string())
 print(model.upper_pop.to_string())
 print("*"*100)
 print(model.lower_pop.to_string())
+
+costs = calculate_costs(df_future=model.future_pop, cost_dict=cost_dict, proportions=proportions, step_size=step_size, inflation=None)
+print('#'*80)
+print(costs)
 
 p = all_pops.plot()
 p.axvline(end, ls=":", c="g")
