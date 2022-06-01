@@ -1,4 +1,4 @@
-MAX_YEARS_OF_DATA = 2
+MAX_YEARS_OF_DATA = 5
 
 NOT_IN_CARE = 'Not in care'
 
@@ -20,19 +20,25 @@ age_brackets = {
 }
 
 cost_params_map = {
-    'Fostering (friend/relative)': ('Fostering', 'friend/relative'),
-    'Fostering (in-house)': ('Fostering', 'in_houseF'),
+    'Fostering (friend/relative)': ('Fostering', 'Friend/relative'),
+    'Fostering (in-house)': ('Fostering', 'in-house'),
     'Fostering (IFA)': ('Fostering', 'IFA'),
-    'Residential (in-house)': ('Residential', 'in_houseR'),
-    'Residential (external)': ('Residential', 'external'),
-    'Supported': ('Supported', 'supported'),
-    'Secure home': ('Secure_home', 'secure_home'),
-    'Placed with family': ('With_family','with_family'),
-    'Other': ('Other','other')
+    'Residential (in-house)': ('Residential', 'In-house'),
+    'Residential (external)': ('Residential', 'External'),
+    'Supported': ('Supported', 'Supported'),
+    'Secure home': ('Other', 'Secure home'),
+    'Placed with family': ('Other', 'Placed with family'),
+    'Other': ('Other', 'Other')
 }
-# Conversion rules:
-# Outer keys start with a capital letter and inner keys are all lowercase.
-# All hyphens are replaced with underscores.
+
+next_brackets = {
+    '-1 to 1': '1 to 5',
+    '1 to 5': '5 to 10',
+    '5 to 10': '10 to 16',
+    '10 to 16': '16 to 18',
+    '16 to 18': None,
+}
+
 
 class UploadError(Exception):
     pass

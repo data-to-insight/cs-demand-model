@@ -29,10 +29,9 @@ def the_ingress_procedure(files_list):
             empty_years.append(label)
 
         year_dfs = identify_tables(matching_files, table_headers)
-
-        merged_df = combine_files_for_year(year_dfs, i)
-
-        yearly_dfs[label] = merged_df
+        if year_dfs:
+            merged_df = combine_files_for_year(year_dfs, i)
+            yearly_dfs[label] = merged_df
 
     if not yearly_dfs:
         raise UploadError("No valid files received.")
@@ -59,8 +58,7 @@ def the_ingress_procedure(files_list):
     all_903.loc[out_after_mask, 'placement_type_after'] = NOT_IN_CARE
 
     all_903['placement_type_before'] = (all_903
-                                        .groupby('CHILD')
-                                            ['placement_type']
+                                        .groupby('CHILD')['placement_type']
                                         .shift(1)
                                         .fillna(NOT_IN_CARE))
     out_before_mask = (
