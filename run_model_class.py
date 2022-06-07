@@ -10,11 +10,6 @@ base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
               'Supported': {'Sup': 40, },
               'Other': {'secure_home': 150, 'with_family': 30, 'any_other': 40}}
 
-adjusted_costs = {'Foster': {'friend_relative': 100, 'in_house': 200, 'IFA': 300, },
-                  'Resi': {'in_house1': 400, 'external': 600},
-                  'Supported': {'Sup': 400, },
-                  'Other': {'secure_home': 1500, 'with_family': 30, 'any_other': 400}}
-
 cost_dict = {'base': base_costs} #, 'adjusted': adjusted_costs}
 
 proportions = {'Foster': {'friend_relative': 0.5, 'in_house': 0.2, 'IFA': 0.3, },
@@ -23,11 +18,11 @@ proportions = {'Foster': {'friend_relative': 0.5, 'in_house': 0.2, 'IFA': 0.3, }
                'Other': {'secure_home': 0.7, 'with_family': 0.1, 'any_other': 0.2}}
 
 hist_start, ref_start, ref_end, hist_end, pred_end = pd.to_datetime(
-    ['2015-01-01', '2016-01-01', '2017-01-01', '2019-01-01', '2025-01-01'])
+    ['2015-01-01', '2016-06-01', '2017-06-01', '2019-01-01', '2025-01-01'])
 
 step_size = '4m'
 
-bin_defs = {'10 to 16': ('Foster', 'Resi', 'Other'), }
+#bin_defs = {'10 to 16': ('Foster', 'Resi', 'Other'), }
 
 cost_params = {'cost_dict': cost_dict,
                'proportions': proportions,
@@ -37,7 +32,7 @@ cost_params = {'cost_dict': cost_dict,
 df = the_ingress_procedure(ezfiles())
 
 adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
-               {'age_bracket': '10 to 16', 'from': 'Resi', 'to': 'Other', 'n': 3, 'id': 101}]
+               {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
 
 model_params = {}
 model_params['history_start'] = hist_start
@@ -64,15 +59,23 @@ adj_pops = pd.concat([model.historic_pop, model.adjusted_future_pop])
 
 print(all_pops.to_string())
 
-p = pd.concat((all_pops,)).plot()
-p.axvline(hist_end, ls=':', c='g')
+fig, axe = pp.subplots(2, figsize=[15, 9])
+axe[0].set_title('base pops')
+axe[0].plot(all_pops, marker='+')
+axe[0].legend(all_pops.columns)
+axe[0].axvline(hist_end, ls=':', c='g')
+axe[0].axvspan(ref_start, ref_end, color='y', alpha=0.3)
 
-p.axvspan(ref_start, ref_end, color='y', alpha=0.3)
+axe[1].set_title('adjusted pops')
+axe[1].plot(adj_pops,marker='x')
+axe[1].axvline(hist_end, ls=':', c='g')
+axe[1].axvspan(ref_start, ref_end, color='y', alpha=0.3)
 
+fig.set_tight_layout(tight=True)
 pp.show()
 
-adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
-               {'age_bracket': '10 to 16', 'from': 'Resi', 'to': 'Other', 'n': 3, 'id': 101}]
+#adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
+#               {'age_bracket': '10 to 16', 'from': 'Resi', 'to': 'Other', 'n': 3, 'id': 101}]
 
 
 pass

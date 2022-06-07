@@ -272,3 +272,16 @@ def validate_proportions(props_dict):
         for i in err_keys:
             errors[i] = result
     return all_good, errors
+
+
+def apdd(df, ab=None, pt=None, decom=None, dec=None):
+    mask = pd.Series(True, index=df.index)
+    if ab:
+        mask *= df['age_bin'] == ab
+    if pt:
+        mask *= df['placement_type'] == pt
+    if decom:
+        mask *= df['DECOM'] == decom
+    if dec:
+        mask *= df['DEC'] == dec
+    return df[mask]

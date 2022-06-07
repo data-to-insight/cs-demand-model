@@ -4,6 +4,98 @@ from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_ag
 from csdmpy.config import age_brackets as bin_defs
 from csdmpy.config import NOT_IN_CARE
 
+import numpy as np
+
+def get_daily_pops_new_way(df, start=None, end=None, bin_defs=None):
+    if not start:
+        start = df[['DECOM', 'DEC']].min().min()
+    if not end:
+        end = df[['DECOM', 'DEC']].max().max()
+
+    endings = df.groupby(['DEC', 'placement_type', 'age_bin']).size()
+    endings.name = 'nof_decs'
+
+    beginnings = df.groupby(['DECOM', 'placement_type', 'age_bin']).size()
+    beginnings.name = 'nof_decoms'
+
+    endings.index.names = ['date', 'placement_type', 'age_bin']
+    beginnings.index.names = ['date', 'placement_type', 'age_bin']
+
+    pops = pd.merge(left=beginnings, right=endings,
+                    left_index=True, right_index=True, how='outer')
+
+    pops = (pops
+            .fillna(0)
+            .sort_values('date'))
+
+    pops = ((pops['nof_decoms'] - pops['nof_decs'])
+            .groupby(['placement_type', 'age_bin'])
+            .cumsum()
+            .unstack(['age_bin', 'placement_type'])
+            .resample('D')
+            .fillna(method='ffill')  # this one does nothing? as freq something
+            .fillna(method='ffill')
+            .truncate(before=start, after=end)
+            .fillna(0))
+    return pops
+
+
+def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
+    #df['DEC'] = pd.DateOffset(days=1)
+    transitions = (df
+                   .groupby(['placement_type', 'placement_type_after', 'age_bin', 'DEC'])
+                   .size()
+                   .unstack(level=['age_bin', 'placement_type', 'placement_type_after'])
+                   .truncate(before=pops.index.min(), after=pops.index.max())
+                   .fillna(0)
+                   .asfreq('D', fill_value=0)
+                  # .stack('placement_type_after')
+                   # .reorder_levels(['DEC','placement_type_after',  ])
+                   )
+
+    popal, transal = pops.align(transitions)
+
+    print('~~~~~~~~~~~~~~~~~~~\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n',
+          transitions['16 to 18', 'Resi', 'Supported'].apply(['min', 'max']))
+    print(((transitions['16 to 18', 'Resi', 'Supported'] != 0) & (pops['16 to 18', 'Resi'] == 0)).any().any())
+    trans_nonz = (transal['16 to 18', 'Resi', 'Supported'] != 0)
+    pops_zero = (popal['16 to 18', 'Resi', 'Supported'] == 0)
+
+    print((trans_nonz & pops_zero).any())
+    print('POPS\n',popal[trans_nonz & pops_zero].to_string())
+    print('TRANS\n', transal[trans_nonz & pops_zero].to_string())
+
+    #print(born_slippy.index)
+    #print(transitions.loc[_s[born_slippy.any(axis=1)], :], sep='\n==============\n'*2)
+    #print(born_slippy.any(axis=1))
+
+    transition_rates = ((transal / popal.shift(1).fillna(method='bfill'))
+                        .mean(axis=0)
+                        .unstack(['age_bin', 'placement_type'])
+                        .fillna(0))
+
+    bins_in_data = transition_rates.columns.get_level_values('age_bin').unique()
+    transidict = {}
+    for ab in bin_defs:
+        valid_places = bin_defs[ab]
+        if ab in bins_in_data:
+            t_matrix = transition_rates[ab].copy()
+            for pt in t_matrix.columns:
+                print('-------->', pt, '<---')
+                t_matrix.loc[pt, pt] = 1 - (t_matrix
+                                            .loc[:, pt]
+                                            .drop(index=pt)
+                                            .sum())
+            t_matrix = t_matrix.loc[valid_places, valid_places]
+        else:
+            t_matrix = pd.DataFrame(data=np.eye(len(valid_places)),
+                                    index=valid_places,
+                                    columns=valid_places)
+        print(t_matrix.to_string())
+        transidict[ab] = t_matrix
+    return transidict
+
+
 def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
     # this makes a dict which maps the step_size in days to
     # the dict of transition matrices for each age_bracket for that many days
@@ -223,7 +315,7 @@ def get_daily_entrants(df, cat_list, start_date=None, end_date=None,
     return entrants.reindex(cat_list)
 
 
-def apply_adjustments(pops, adjustments):
+def apply_adjustments(pops, adjustments, step_days):
     # TODO: make sure there is at most one adjustment moving kids from one category to another (?)
     # TODO: when more kids than population moving from a category, spread them among all destination categories
     # TODO: calculate relative adjustments from unadjusted population
@@ -234,7 +326,7 @@ def apply_adjustments(pops, adjustments):
         age = adj['age_bracket']
         moving_from = adj['from']
         moving_to = adj['to']
-        amount = adj['n']
+        amount = adj['n'] * step_days / 30.44
         adjustment_type = 'absolute'  # adj['adjustment_type']
         if adjustment_type == 'absolute':
             amount = min(amount, pops[age, moving_from])

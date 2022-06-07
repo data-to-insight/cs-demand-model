@@ -32,7 +32,7 @@ class Model:
     future_costs = None
 
     def __init__(self, df=None, model_params=None, cost_params=None, adjustments=None):
-        if df:
+        if df is not None:
             self.df = df
 
         # assume everything coming in is valid param sets as they'll have been through check_params etc already
@@ -88,9 +88,10 @@ class Model:
         step_size = self.step_size
         
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
-        
-        t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
 
+        pops = get_daily_pops_new_way(df, start_date, end_date)
+        #t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
+        t_probs = get_daily_transitions_new_way(df, pops)
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
         print('[[[*] * * * * (( TRANS PROBS ))\n')
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
@@ -134,16 +135,13 @@ class Model:
             print('Making children older...')
             next_pop = apply_ageing(next_pop, {'fake': 'fake',
                                                'records': 'records'})
-            if adjustments:
-                adj_next_pop = apply_ageing(next_pop, {'fake': 'fake', 
-                                                                'records': 'records'})
             print('Moving children around...')
             for age_bracket in next_pop.index.get_level_values('age_bin').unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
                 next_pop[age_bracket] = T.dot(next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
                 if adjustments:
                     adj_next_pop[age_bracket] = T.dot(adj_next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
-                    adj_next_pop = apply_adjustments(adj_next_pop.copy(), adjustments)
+                    adj_next_pop = apply_adjustments(adj_next_pop.copy(), adjustments, step_days)
 
             future_pop.loc[date] = next_pop
             if adjustments:
