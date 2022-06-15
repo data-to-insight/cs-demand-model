@@ -59,6 +59,13 @@ adj_pops = pd.concat([model.historic_pop, model.adjusted_future_pop])
 
 print(all_pops.to_string())
 
+print("VARIANCEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEES")
+print(model.variances)
+print('********************* upper pop ****************************')
+print(model.upper_pop)
+print('********************* lower pop ****************************')
+print(model.lower_pop)
+
 fig, axe = pp.subplots(2, figsize=[15, 9])
 axe[0].set_title('base pops')
 axe[0].plot(all_pops, marker='+')
