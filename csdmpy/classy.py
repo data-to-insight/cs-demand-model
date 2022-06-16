@@ -32,30 +32,22 @@ class Model:
     past_costs = None
     future_costs = None
 
-    def __init__(self, df=None, model_params=None, cost_params=None, adjustments=None):
-        if df is not None:
-            self.df = df
+    def __init__(self, df=None, model_params=None, adjustments=None):
+        self.df = df
 
-        # assume everything coming in is valid param sets as they'll have been through check_params etc already
-        if cost_params:
-            self.cost_params = cost_params
-        else:
-            self.cost_params = None
+        self.start_date = model_params['history_start']
+        self.ref_start = model_params['reference_start']
+        self.ref_end = model_params['reference_end']
+        self.end_date = model_params['history_end']
+        self.horizon_date = model_params['prediction_end']
+        self.step_size = model_params['step_size']
+        self.bin_defs = model_params['bin_defs']
 
-        if adjustments:
-            self.adjustments = adjustments
-        else:
-            self.adjustments = None
+        self.adjustments = adjustments
 
-        if model_params:
-            self.set_model_params(model_params)
-
-    def do_everything(self):
         self.set_up_time_series()
         self.measure_system()
         self.predict()
-        if self.cost_params:
-            self.calculate_costs()
 
     def set_up_time_series(self):
         df, bin_defs, start_date, end_date, horizon_date, step_size \
@@ -196,14 +188,11 @@ class Model:
             self.adjusted_future_pop = adjusted_future_pop
             self.adj_upper_pop, self.adj_lower_pop = deviation_bounds(adjusted_future_pop, adj_var_df)
 
-    def calculate_costs(self):
-        cost_params = self.cost_params
+    def calculate_costs(self, cost_params):
         future_costs = calculate_costs(self.future_pop, **cost_params)
         adjustments = self.adjustments
         if adjustments:
-            adj_future_costs = calculate_costs(self.adjusted_future_pop, **cost_params)
-        else:
-            adj_future_costs = None
+            calculate_costs(self.adjusted_future_pop, **cost_params)
 
         past_cost_params = cost_params.copy()
         past_cost_params['inflation'] = None
@@ -213,15 +202,6 @@ class Model:
         print(past_costs)
         self.past_costs = past_costs['base']
         self.future_costs = future_costs['base']
-
-    def set_model_params(self, model_params):
-        self.start_date = model_params['history_start']
-        self.ref_start = model_params['reference_start']
-        self.ref_end = model_params['reference_end']
-        self.end_date = model_params['history_end']
-        self.horizon_date = model_params['prediction_end']
-        self.step_size = model_params['step_size']
-        self.bin_defs = model_params['bin_defs']
 
 
     def update_cost_params(self, cost_params):

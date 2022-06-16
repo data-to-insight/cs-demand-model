@@ -44,13 +44,8 @@ model_params['step_size'] = step_size
 model_params['bin_defs'] = bin_defs
 
 print(df.columns)
-model = Model(df)
-
-model.set_model_params(model_params)
-model.cost_params = cost_params
-model.adjustments = adjustments
-
-model.do_everything()
+model = Model(df, model_params=model_params, adjustments=adjustments)
+model.calculate_costs(cost_params)
 
 print(model.step_probs.keys())
 
