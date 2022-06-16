@@ -5,6 +5,8 @@ from csdmpy.ingress import the_ingress_procedure
 import matplotlib.pyplot as pp
 import pandas as pd
 
+df = the_ingress_procedure(ezfiles())
+
 base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
               'Resi': {'in_house1': 40, 'external': 60},
               'Supported': {'Sup': 40, },
@@ -21,19 +23,6 @@ hist_start, ref_start, ref_end, hist_end, pred_end = pd.to_datetime(
     ['2015-01-01', '2016-06-01', '2017-06-01', '2019-01-01', '2025-01-01'])
 
 step_size = '4m'
-
-#bin_defs = {'10 to 16': ('Foster', 'Resi', 'Other'), }
-
-cost_params = {'cost_dict': cost_dict,
-               'proportions': proportions,
-               'inflation': 0.2,
-               'step_size': step_size}
-
-df = the_ingress_procedure(ezfiles())
-
-adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
-               {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
-
 model_params = {}
 model_params['history_start'] = hist_start
 model_params['reference_start'] = ref_start
@@ -43,8 +32,17 @@ model_params['prediction_end'] = pred_end
 model_params['step_size'] = step_size
 model_params['bin_defs'] = bin_defs
 
+
+adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
+               {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
+
 print(df.columns)
 model = Model(df, model_params=model_params, adjustments=adjustments)
+
+cost_params = {'cost_dict': cost_dict,
+               'proportions': proportions,
+               'inflation': 0.2,
+               'step_size': step_size}
 model.calculate_costs(cost_params)
 
 print(model.step_probs.keys())
