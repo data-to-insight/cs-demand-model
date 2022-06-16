@@ -19,6 +19,8 @@
 
 <div id="base_pop_graph" style="width:600px;height:600px;"></div>
 <div id="adj_pop_graph" style="width:600px;height:600px;"></div>
+<div id="base_cost_graph" style="width:600px;height:600px;"></div>
+<div id="adj_cost_graph" style="width:600px;height:600px;"></div>
 
 </body>
 
@@ -26,6 +28,39 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 
 <script>
+const load_cost_charts = () => {
+  const base_cost_graph = document.getElementById('base_cost_graph')
+  const adj_cost_graph = document.getElementById('adj_cost_graph')
+
+  //Ajax Function to send a get request
+  $.ajax({
+    type: "GET",
+    url: '/costs',
+    success: function(response){
+      Plotly.newPlot( base_cost_graph, response.base_cost_graph);
+      Plotly.newPlot( adj_cost_graph, response.adj_cost_graph);
+    }
+  });
+}
+
+const load_base_charts = data => {
+  const queryString = $.param(data);
+  const url = "calc?" + queryString;
+
+  const base_pop_graph = document.getElementById('base_pop_graph')
+  const adj_pop_graph = document.getElementById('adj_pop_graph')
+
+  //Ajax Function to send a get request
+  $.ajax({
+    type: "GET",
+    url: url,
+    success: function(response){
+      Plotly.newPlot( base_pop_graph, response.base_pop_graph);
+      Plotly.newPlot( adj_pop_graph, response.adj_pop_graph);
+      load_cost_charts()
+    }
+  });
+}
 
 // Attach a submit handler to the form
 $( "#userForm" ).submit(function( event ) {
@@ -42,22 +77,7 @@ $( "#userForm" ).submit(function( event ) {
         data[el.name] = val
     }
   })
-  console.log(data)
-  const queryString = $.param(data);
-  const url = "calc?" + queryString;
-
-  //Ajax Function to send a get request
-  $.ajax({
-    type: "GET",
-    url: url,
-    success: function(response){
-      console.log(response)
-      const base_pop_graph = document.getElementById('base_pop_graph')
-      const adj_pop_graph = document.getElementById('adj_pop_graph')
-      Plotly.newPlot( base_pop_graph, response.base_pop_graph);
-      Plotly.newPlot( adj_pop_graph, response.adj_pop_graph);
-    }
-  });
+  load_base_charts(data);
 
 });
 

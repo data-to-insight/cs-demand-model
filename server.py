@@ -40,7 +40,12 @@ def calculate_model():
         adj_pop_graph=session.model.adj_pop_graph,
     )
 
+
+@app.route('/costs')
 def caclulate_costs():
+    if session.model is None:
+        return dict(error='No model calculated yet')
+
     base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
                   'Resi': {'in_house1': 40, 'external': 60},
                   'Supported': {'Sup': 40, },
@@ -52,6 +57,19 @@ def caclulate_costs():
                    'Resi': {'in_house1': 0.4, 'external': 0.6},
                    'Supported': {'Sup': 1, },
                    'Other': {'secure_home': 0.7, 'with_family': 0.1, 'any_other': 0.2}}
+
+    cost_params = {'cost_dict': cost_dict,
+                   'proportions': proportions,
+                   'inflation': 0.2,
+                   'step_size': '4m'
+                   }
+
+    session.calculate_costs(cost_params)
+
+    return dict(
+        base_cost_graph=session.model.base_cost_graph,
+        adj_cost_graph=session.model.adj_cost_graph,
+    )
 
 
 if __name__ == "__main__":
