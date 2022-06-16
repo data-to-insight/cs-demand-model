@@ -130,7 +130,7 @@ class Model:
         entrant_rates = self.entrant_rates
         next_pop = self.initial_pop.copy()
         adj_next_pop = self.initial_pop.copy()
-        date_vars = next_pop.copy()
+        date_vars = pd.Series(data=1, index=next_pop.index)
         adj_date_vars = adj_next_pop.copy()
         var_df = future_pop.copy()
         adj_var_df = future_pop.copy()
@@ -156,31 +156,32 @@ class Model:
                 T = precalced_transition_matrices[step_days][age_bracket]
                 # store present pop value so that it can be used in variance calculation.
                 this_pop = next_pop.copy()
+
                 next_pop[age_bracket] = T.dot(next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
                 if adjustments:
                     adj_this_pop = adj_next_pop.copy()
                     adj_next_pop[age_bracket] = T.dot(adj_next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
                     adj_next_pop = apply_adjustments(adj_next_pop.copy(), adjustments, step_days)
                 
-                # TODO adjust variance calculation so that it can calculate the variance of adjusted pop also.
                 ## VARIANCE
                 # M^t where M is daily transition probabilities and t is time so far.
                 T_full = T_so_far[age_bracket].multiply(T) # should this be matrix or elementwise multiplication?
+                T_so_far[age_bracket] = T_full
                 # M^t x (1 – M^t) where x represents elementwise multiplication.
                 one_minusT = 1 - T_full
                 tran_mat = T_full.multiply(one_minusT)
                 if date == self.ref_start:
-                    # at the start of the start of the prediction, the reference point, t is zero.
+                    # at the start of the prediction, the reference point, t is zero.
                     T = self.t_probs[age_bracket]
                     tran_mat = T.pow(0).multiply(1-T.pow(0))
                     days_so_far = 0
                 # var[t0+t] = S(t) *  (M^t x (1 – M^t))  + R * t 
                 # variances_t_later = (tran1day^cum_days x (1 - ran1day^cumdays)) * next_pop + entrants*(cum_days)
-                date_vars[age_bracket] = tran_mat.dot(this_pop[age_bracket]) + (this_pop[age_bracket] * days_so_far)
+                date_vars[age_bracket] = tran_mat.dot(this_pop[age_bracket]) + (entrant_rates[age_bracket] * days_so_far)
                 ## date_vars[age_bracket] = ((self.t_probs[age_bracket].pow(days_so_far)).multiply(1-(self.t_probs[age_bracket].pow(days_so_far)))).dot(this_pop[age_bracket]) + (this_pop[age_bracket] * days_so_far)
                 if adjustments:
                     adj_date_vars[age_bracket] = tran_mat.dot(adj_this_pop[age_bracket]) + (adj_this_pop[age_bracket] * days_so_far)
-
+                
             future_pop.loc[date] = next_pop
             var_df.loc[date] = date_vars
             if adjustments:
