@@ -1,5 +1,5 @@
 from dateutil.parser import parse
-from flask import Flask, request
+from flask import Flask, request, render_template
 
 from csdmpy.api import ApiSession
 from csdmpy.config import age_brackets as bin_defs
@@ -14,8 +14,8 @@ def _request_date(value, default=None):
     return parse(request.args.get(value, default))
 
 @app.route('/')
-def hello():
-    return 'Hello, World!'
+def index():
+    return render_template('index.html')
 
 
 @app.route('/calc')
@@ -35,8 +35,10 @@ def calculate_model():
 
     session.calculate_model(model_params, adjustments)
 
-    return dict(base_pop_graph=session.model.base_pop_graph)
-
+    return dict(
+        base_pop_graph=session.model.base_pop_graph,
+        adj_pop_graph=session.model.adj_pop_graph,
+    )
 
 def caclulate_costs():
     base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
@@ -51,3 +53,6 @@ def caclulate_costs():
                    'Supported': {'Sup': 1, },
                    'Other': {'secure_home': 0.7, 'with_family': 0.1, 'any_other': 0.2}}
 
+
+if __name__ == "__main__":
+    app.run(debug=True)

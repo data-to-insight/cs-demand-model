@@ -1,0 +1,65 @@
+<html>
+<head>
+    <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+ </head>
+<body>
+<div class="container">
+
+<form id="userForm">
+  <input type="text" name="history_start" placeholder="history_start">
+  <input type="text" name="reference_start" placeholder="reference_start">
+  <input type="text" name="reference_end" placeholder="reference_end">
+  <input type="text" name="history_end" placeholder="history_end">
+  <input type="text" name="prediction_end" placeholder="prediction_end">
+  <input type="submit" value="Search">
+</form>
+</div>
+
+<div id="base_pop_graph" style="width:600px;height:600px;"></div>
+<div id="adj_pop_graph" style="width:600px;height:600px;"></div>
+
+</body>
+
+<!-- Compiled and minified JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+<script>
+
+// Attach a submit handler to the form
+$( "#userForm" ).submit(function( event ) {
+
+  // Stop form from submitting normally
+  event.preventDefault();
+
+  // Get some values from elements on the page:
+  var $form = $( this )
+  const data = {}
+  $form.find( "input[type='text']" ).each(function(ix, el) {
+    const val = $(el).val()
+    if (val) {
+        data[el.name] = val
+    }
+  })
+  console.log(data)
+  const queryString = $.param(data);
+  const url = "calc?" + queryString;
+
+  //Ajax Function to send a get request
+  $.ajax({
+    type: "GET",
+    url: url,
+    success: function(response){
+      console.log(response)
+      const base_pop_graph = document.getElementById('base_pop_graph')
+      const adj_pop_graph = document.getElementById('adj_pop_graph')
+      Plotly.newPlot( base_pop_graph, response.base_pop_graph);
+      Plotly.newPlot( adj_pop_graph, response.adj_pop_graph);
+    }
+  });
+
+});
+
+</script>
+</html>
