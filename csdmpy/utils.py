@@ -1,29 +1,32 @@
+from pathlib import Path
+
 import pandas as pd
 from .config import ACCEPTED_DATE_FORMATS, cost_params_map
 import os
 from warnings import warn
 
+test_903_dir = Path(__file__).parent / 'tests' / 'fake903_5yrs'
 
 def ezfiles():
-    test_903_dir = os.path.join(os.path.dirname(__file__), 'tests', 'fake903_5yrs')
     year_list = [2017, 2018, 2019, 2020, 2021]
     tables_needed = ('header', 'episodes')
-    table_headers = {
-        'Episodes':
-            'CHILD,DECOM,RNE,LS,CIN,PLACE,PLACE_PROVIDER,DEC,REC,REASON_PLACE_CHANGE,HOME_POST,PL_POST'.split(','),
-        'Header':
-            'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
-    }
     files_list = []
     for year in year_list:
-        year_dir = os.path.join(test_903_dir, str(year))
+        year_dir = test_903_dir / str(year)
         label = str(max(year_list) - year) + "_ago"
         for table_name in tables_needed:
-            table_path = os.path.join(year_dir, table_name + '.csv')
-            with open(table_path, 'r') as file:
-                file_bytes = file.read().encode('utf-8')
-            files_list.append({'description': label,
-                               'fileText': file_bytes})
+            table_path = year_dir / (table_name + '.csv')
+            file_bytes = table_path.read_bytes()
+            files_list.append({
+                'description': label,
+                'year': f'{year - 1}/{year % 1000}',
+                'name': table_path.name,
+                'path': str(table_path.resolve()),
+                'last_modified': int(table_path.stat().st_mtime),
+                'size': len(file_bytes),
+                'type': 'text/csv',
+                'fileText': file_bytes,
+            })
     return files_list
 
 

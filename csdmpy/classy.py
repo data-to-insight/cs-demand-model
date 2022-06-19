@@ -1,10 +1,24 @@
-import pandas as np
-import numpy as np
+from dataclasses import field
+
+from marshmallow_dataclass import dataclass
+from datetime import date
+from typing import Mapping, Any
+
+from csdmpy.config import age_brackets
 from csdmpy.super_model import *
-# from ingress import ...
 from csdmpy.costs import calculate_costs
-from csdmpy.config import next_brackets
 from csdmpy.utils import deviation_bounds
+
+
+@dataclass(frozen=True)
+class ModelParams:
+    history_start: date
+    reference_start: date
+    reference_end: date
+    history_end: date
+    prediction_end: date
+    step_size: int = 4
+    bin_defs: Mapping[str, Any] = field(default_factory=lambda: age_brackets)
 
 
 class Model:
@@ -32,16 +46,16 @@ class Model:
     past_costs = None
     future_costs = None
 
-    def __init__(self, df=None, model_params=None, adjustments=None):
+    def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
         self.df = df
 
-        self.start_date = model_params['history_start']
-        self.ref_start = model_params['reference_start']
-        self.ref_end = model_params['reference_end']
-        self.end_date = model_params['history_end']
-        self.horizon_date = model_params['prediction_end']
-        self.step_size = model_params['step_size']
-        self.bin_defs = model_params['bin_defs']
+        self.start_date = model_params.history_start
+        self.ref_start = model_params.reference_start
+        self.ref_end = model_params.reference_end
+        self.end_date = model_params.history_end
+        self.horizon_date = model_params.prediction_end
+        self.step_size = f'{model_params.step_size}m'
+        self.bin_defs = model_params.bin_defs
 
         self.adjustments = adjustments
 

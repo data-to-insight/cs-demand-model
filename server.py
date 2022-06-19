@@ -1,39 +1,33 @@
+#!/usr/bin/env python
+from base64 import b64encode
+
 from dateutil.parser import parse
 from flask import Flask, request, render_template
+from flask_cors import CORS
 
 from csdmpy.api import ApiSession
-from csdmpy.config import age_brackets as bin_defs
+from csdmpy.classy import ModelParams
 from csdmpy.utils import ezfiles
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 session = ApiSession(ezfiles())
 
-
-def _request_date(value, default=None):
-    return parse(request.args.get(value, default))
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-@app.route('/calc')
+@app.route('/calc', methods=['POST'])
 def calculate_model():
-    model_params = {
-        'history_start': _request_date('history_start', '2015-01-01'),
-        'reference_start': _request_date('reference_start', '2016-06-01'),
-        'reference_end': _request_date('reference_end', '2017-06-01'),
-        'history_end': _request_date('history_end', '2019-01-01'),
-        'prediction_end': _request_date('prediction_end', '2025-01-01'),
-        'step_size': '4m',
-        'bin_defs': bin_defs
-    }
-
-    adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
-                   {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
-
-    session.calculate_model(model_params, adjustments)
+    model_params = ModelParams.Schema().load(request.form)
+    #
+    # adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
+    #                {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
+    #
+    session.calculate_model(model_params, [])
 
     return dict(
         base_pop_graph=session.model.base_pop_graph,
@@ -70,6 +64,24 @@ def caclulate_costs():
         base_cost_graph=session.model.base_cost_graph,
         adj_cost_graph=session.model.adj_cost_graph,
     )
+
+
+@app.route('/samplefiles')
+def sample_files():
+    files = ezfiles()
+    files = [
+        {
+            'description': f['description'],
+            'year': f['year'],
+            'path': f['path'],
+            'name': f['name'],
+            'size': f['size'],
+            'lastModified': f['last_modified'],
+            'type': f['type'],
+            'data': b64encode(f['fileText']).decode('ascii'),
+        } for f in files
+    ]
+    return dict(files=files)
 
 
 if __name__ == "__main__":
