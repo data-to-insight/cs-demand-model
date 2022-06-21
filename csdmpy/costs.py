@@ -6,6 +6,7 @@ turning forecast values from model and cost estimates typed into frontend into c
 import pandas as pd
 import numpy as np
 from csdmpy.super_model import step_to_days
+from warnings import warn
 
 ## Functionality present
 """ 
@@ -48,7 +49,7 @@ def proportion_split(df, all_proportions):
     for category, ratios in all_proportions.items():
         if sum(ratios.values()) != 1.0:
             subcategories = tuple(ratios.keys())
-            raise ValueError(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%')
+            warn(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%')
 
     # copy over the date values contained in the index.
     df_made = pd.DataFrame(index=df.index)

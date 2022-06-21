@@ -31,6 +31,7 @@ model_params['history_end'] = hist_end
 model_params['prediction_end'] = pred_end
 model_params['step_size'] = step_size
 model_params['bin_defs'] = bin_defs
+model_params = ModelParams(**model_params)
 
 
 adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},

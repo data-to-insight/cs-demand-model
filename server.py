@@ -36,29 +36,35 @@ def calculate_model():
 
 
 @app.route('/costs')
-def caclulate_costs():
+def calculate_costs():
     if session.model is None:
         return dict(error='No model calculated yet')
 
-    base_costs = {'Foster': {'friend_relative': 10, 'in_house': 20, 'IFA': 30, },
-                  'Resi': {'in_house1': 40, 'external': 60},
-                  'Supported': {'Sup': 40, },
-                  'Other': {'secure_home': 150, 'with_family': 30, 'any_other': 40}}
+    costs = {
+        'Fostering(friend / relative)': 100,
+        'Fostering (in-house)': 111,
+        'Fostering (IFA)': 1000,
+        'Residential (in-house)': 20,
+        'Residential (external)': 207,
+        'Supported': 2077,
+        'Secure home': 240,
+        'Placed with family': 2440,
+        'Other': 240
+    }
 
-    cost_dict = {'base': base_costs}  # , 'adjusted': adjusted_costs}
+    props = {
+        'Fostering(friend / relative)': 0.5,
+        'Fostering (in-house)': 0.5,
+        'Fostering (IFA)': 0,
+        'Residential (in-house)': 0.4,
+        'Residential (external)': 0.6,
+        'Supported': 1,
+        'Secure home': 0.2,
+        'Placed with family': 0.4,
+        'Other': 0.4
+    }
 
-    proportions = {'Foster': {'friend_relative': 0.5, 'in_house': 0.2, 'IFA': 0.3, },
-                   'Resi': {'in_house1': 0.4, 'external': 0.6},
-                   'Supported': {'Sup': 1, },
-                   'Other': {'secure_home': 0.7, 'with_family': 0.1, 'any_other': 0.2}}
-
-    cost_params = {'cost_dict': cost_dict,
-                   'proportions': proportions,
-                   'inflation': 0.2,
-                   'step_size': '4m'
-                   }
-
-    session.calculate_costs(cost_params)
+    session.calculate_costs(costs, props)
 
     return dict(
         base_cost_graph=session.model.base_cost_graph,

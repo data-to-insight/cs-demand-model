@@ -17,13 +17,13 @@ class ApiSession:
         self._model = Model(self.df, model_params=model_params, adjustments=adjustments)
 
     def calculate_costs(self, costs, proportions, inflation=None):
-        step_size = self._model.step_size
+        step_size = self.model.step_size
         nested_costs, nested_proportions = cost_translation(costs, proportions, cost_params_map)
-        cost_params = {'cost_dict': nested_costs,
+        cost_params = {'cost_dict': {'base': nested_costs},
                        'proportions': nested_proportions,
                        'inflation': inflation,
                        'step_size': step_size}
-        self._model.calculate_costs(cost_params)
+        self.model.calculate_costs(cost_params)
 
     @property
     def model(self):

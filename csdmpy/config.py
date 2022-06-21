@@ -20,11 +20,11 @@ age_brackets = {
 }
 
 cost_params_map = {
-    'Fostering (friend/relative)': ('Fostering', 'Friend/relative'),
-    'Fostering (in-house)': ('Fostering', 'in-house'),
-    'Fostering (IFA)': ('Fostering', 'IFA'),
-    'Residential (in-house)': ('Residential', 'In-house'),
-    'Residential (external)': ('Residential', 'External'),
+    'Fostering (friend/relative)': ('Foster', 'Friend/relative'),
+    'Fostering (in-house)': ('Foster', 'in-house'),
+    'Fostering (IFA)': ('Foster', 'IFA'),
+    'Residential (in-house)': ('Resi', 'In-house'),
+    'Residential (external)': ('Resi', 'External'),
     'Supported': ('Supported', 'Supported'),
     'Secure home': ('Other', 'Secure home'),
     'Placed with family': ('Other', 'Placed with family'),
