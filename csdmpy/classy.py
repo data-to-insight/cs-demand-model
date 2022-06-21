@@ -217,10 +217,6 @@ class Model:
         self.past_costs = past_costs['base']
         self.future_costs = future_costs['base']
 
-
-    def update_cost_params(self, cost_params):
-        self.cost_params = cost_params
-
     def gen_pop_graph(self, df, forecast_start_date):
         # fragile container of trace objects to be drawn by plotly.js
         tracey_beaker = [
