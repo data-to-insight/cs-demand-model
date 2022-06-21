@@ -127,7 +127,8 @@ def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=Non
     # The cost array is replicated into a DataFrame whose index and columns are the same as df_made.
     cost_structure = pd.DataFrame(index=subcategory_pops_ts.index, columns=cols)
     cost_structure.loc[:, :] = vals_list
-    costed_df = subcategory_pops_ts.multiply(cost_structure)
+    
+    costed_df = subcategory_pops_ts.multiply(cost_structure, axis='columns')
 
     if inflation:
         inflated_df = include_inflation(costed_df, inflation_rate=inflation)
@@ -153,13 +154,10 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None
     df_future = df_future.groupby(level=1, axis=1).sum()
 
     proportioned_df = proportion_split(df_future, proportions)
+    print("{{{{{{{{{{{{{{{{{{{{{{{{{ PROPORTIONED DF {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{")
+    print(proportioned_df)
+    # Get the costs over the specified time period.
+    cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=cost_dict, step_size=step_size,
+                                inflation=inflation)
     
-    for scenario in cost_dict:
-        # Scenarios are base, adjusted
-        location_costs = cost_dict[scenario]     
-        # Get the costs over the specified time period.
-        cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=location_costs, step_size=step_size,
-                                 inflation=inflation)
-        future_costs[scenario] = cost_ts
-    
-    return future_costs
+    return cost_ts
