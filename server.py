@@ -27,7 +27,7 @@ def calculate_model():
     # adjustments = [{'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Resi', 'n': 0, 'id': 100},
     #                {'age_bracket': '10 to 16', 'from': 'Foster', 'to': 'Other', 'n': 10, 'id': 101}]
     #
-    session.calculate_model(model_params, [])
+    session.calculate_model(model_params, )
 
     return dict(
         base_pop_graph=session.model.base_pop_graph,

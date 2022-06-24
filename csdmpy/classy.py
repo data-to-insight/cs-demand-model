@@ -12,7 +12,7 @@ from csdmpy.utils import deviation_bounds
 
 @dataclass(frozen=True)
 class ModelParams:
-    history_start: date
+    history_start: date  # these should be dates but im doing late night hacky business
     reference_start: date
     reference_end: date
     history_end: date
@@ -45,8 +45,12 @@ class Model:
     entrant_rates = None
     past_costs = None
     future_costs = None
+    adjusted_future_costs = None
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
+        print('INITTING MODEL INISTANCE')
+        print('PAMS:', model_params)
+        print('ADJS:', adjustments)
         self.df = df
 
         self.start_date = model_params.history_start
@@ -103,7 +107,6 @@ class Model:
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
         print('[[[*] * * * * (( TRANS PROBS ))\n')
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
-
 
         for bracket, t_mat in t_probs.items():
             print(str(bracket) + ':', t_mat, sep='\n')
@@ -206,16 +209,15 @@ class Model:
         future_costs = calculate_costs(self.future_pop, **cost_params)
         adjustments = self.adjustments
         if adjustments:
-            calculate_costs(self.adjusted_future_pop, **cost_params)
+            adjusted_future_costs = calculate_costs(self.adjusted_future_pop, **cost_params)
 
         past_cost_params = cost_params.copy()
         past_cost_params['inflation'] = None
         past_costs = calculate_costs(self.historic_pop, **cost_params)
-        print(' = = = = #######################  = = = = ')
-        print(type(past_costs))
-        print(past_costs)
-        self.past_costs = past_costs['base']
-        self.future_costs = future_costs['base']
+        self.past_costs = past_costs
+        self.future_costs = future_costs
+        if adjustments:
+            self.adjusted_future_costs = adjusted_future_costs
 
     def gen_pop_graph(self, df, forecast_start_date):
         # fragile container of trace objects to be drawn by plotly.js
@@ -239,31 +241,30 @@ class Model:
              'name': 'Forecast start'}
         )
 
-        print('POP traces:', *tracey_beaker, sep='\n')
         return tracey_beaker
 
     @property
     def base_pop_graph(self):
         df = pd.concat([self.historic_pop, self.future_pop])
-        forecast_start_date = self.end_date
+        forecast_start_date = pd.to_datetime(self.end_date)
         return self.gen_pop_graph(df, forecast_start_date)
 
     @property
     def adj_pop_graph(self):
         df = pd.concat([self.historic_pop, self.adjusted_future_pop])
-        forecast_start_date = self.end_date
+        forecast_start_date = pd.to_datetime(self.end_date)
         return self.gen_pop_graph(df, forecast_start_date)
-
 
     @property
     def base_cost_graph(self):
         df = pd.concat([self.past_costs, self.future_costs])
-        forecast_start_date = self.end_date
+        forecast_start_date = pd.to_datetime(self.end_date)
         return self.gen_cost_graph(df, forecast_start_date)
+
     @property
     def adj_cost_graph(self):
-        df = pd.concat([self.past_costs, self.future_costs])
-        forecast_start_date = self.end_date
+        df = pd.concat([self.past_costs, self.adjusted_future_costs])
+        forecast_start_date = pd.to_datetime(self.end_date)
         return self.gen_cost_graph(df, forecast_start_date)
 
     def gen_cost_graph(self, df, forecast_start_date):
@@ -279,7 +280,7 @@ class Model:
 
         # noinspection PyTypeChecker
         tracey_beaker.append(
-            {'x': [self.end_date.strftime('%Y-%m-%d'), ] * 2,
+            {'x': [forecast_start_date.strftime('%Y-%m-%d'), ] * 2,
              'y': [0, df.max().max()],
              'type': 'scatter',
              'line': {'dash': 'dot',
@@ -288,6 +289,4 @@ class Model:
              'name': 'Forecast start'}
         )
 
-        print('COST traces:', *tracey_beaker, sep='\n')
         return tracey_beaker
-

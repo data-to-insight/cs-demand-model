@@ -20,8 +20,8 @@ model_params['step_size'] = step_size
 model_params['bin_defs'] = bin_defs
 model_params = ModelParams(**model_params)
 
-costs = {k: 100 for k in cost_params_map.keys()}
-props = {k: 0.3 for k in cost_params_map.keys()}
+costs = {k: '100' for k in cost_params_map.keys()}
+props = {k: '0.3' for k in cost_params_map.keys()}
 
 session = ApiSession(ezfiles())
 

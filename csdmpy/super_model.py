@@ -322,20 +322,21 @@ def apply_adjustments(pops, adjustments, step_days):
     # adjustments = pd.DataFrame(adjustments)
     # ...
     print(', @@@ BEFORE ADJUSTING@ @ @ @',pops)
+
     for adj in adjustments:
-        age = adj['age_bracket']
+        age = adj['age']
         moving_from = adj['from']
         moving_to = adj['to']
-        amount = adj['n'] * step_days / 30.44
+        amount = int(adj['n']) * step_days / 30.44
         adjustment_type = 'absolute'  # adj['adjustment_type']
-        if adjustment_type == 'absolute':
+        if adjustment_type == 'absolute' and moving_from != 'New care entrant':
             amount = min(amount, pops[age, moving_from])
-            pops[(age, moving_to)] += amount
-            pops[(age, moving_from)] -= amount
-        elif adj['adjustment_type'] == 'relative':
+        elif adjustment_type == 'relative':
             amount = amount * pops[moving_from]
-            pops[moving_to] += amount
-            pops[moving_from] -= amount
+        if moving_to != 'Care leaver':
+            pops[(age, moving_to)] += amount
+        if moving_from != 'New care entrant':
+            pops[(age, moving_from)] -= amount
     print(',.,.,, AFTER ADJUSTING @@@ @ @ @ @', pops)
 
     return pops

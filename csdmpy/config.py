@@ -19,18 +19,6 @@ age_brackets = {
     '16 to 18': ('Foster', 'Resi', 'Supported', 'Other'),
 }
 
-cost_params_map = {
-    'Fostering (friend/relative)': ('Foster', 'Friend/relative'),
-    'Fostering (in-house)': ('Foster', 'in-house'),
-    'Fostering (IFA)': ('Foster', 'IFA'),
-    'Residential (in-house)': ('Resi', 'In-house'),
-    'Residential (external)': ('Resi', 'External'),
-    'Supported': ('Supported', 'Supported'),
-    'Secure home': ('Other', 'Secure home'),
-    'Placed with family': ('Other', 'Placed with family'),
-    'Other': ('Other', 'Other')
-}
-
 next_brackets = {
     '-1 to 1': '1 to 5',
     '1 to 5': '5 to 10',
@@ -38,6 +26,19 @@ next_brackets = {
     '10 to 16': '16 to 18',
     '16 to 18': None,
 }
+cost_params_map = {
+    'foster_friend_relative': ('Foster', 'Friend/relative'),
+    'foster_in_house': ('Foster', 'in-house'),
+    'foster_IFA': ('Foster', 'IFA'),
+    'resi_in_house': ('Resi', 'In-house'),
+    'resi_external': ('Resi', 'External'),
+    'supported_supported': ('Supported', 'Supported'),
+    'other_secure_home': ('Other', 'Secure home'),
+    'other_placed_with_family': ('Other', 'Placed with family'),
+    'other_other': ('Other', 'Other')
+}
+
+
 
 
 class UploadError(Exception):

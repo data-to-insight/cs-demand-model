@@ -47,10 +47,9 @@ def proportion_split(df, all_proportions):
 
     # make sure they sum to 1.0
     for category, ratios in all_proportions.items():
-        if sum(ratios.values()) != 1.0:
+        if sum((float(i) for i in ratios.values())) != 1.0:
             subcategories = tuple(ratios.keys())
             warn(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%')
-
     # copy over the date values contained in the index.
     df_made = pd.DataFrame(index=df.index)
     # create array structure that will be used to form a MultiIndex for the DataFrame columns.
@@ -137,7 +136,6 @@ def create_cost_ts(subcategory_pops_ts, location_costs, step_size, inflation=Non
         return costed_df
 
 
-
 def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None):
     """
     The expected shape of cost_dict is 
@@ -149,18 +147,24 @@ def calculate_costs(df_future, cost_dict, proportions, step_size, inflation=None
     The expected shape of proportions is the same as location_costs, however the numbers represent fractions/percentages
     of the population in each location type.
     """
+
+    for param_dict in cost_dict, proportions:
+        for cat in param_dict.keys():
+            for subcat in param_dict[cat].keys():
+                print(cat, subcat, param_dict[cat][subcat])
+                param_dict[cat][subcat] = float(param_dict[cat][subcat])
+
     future_costs = {}
     # Group the data by placement type such that the population is no longer split by age.
     df_future = df_future.groupby(level=1, axis=1).sum()
 
     proportioned_df = proportion_split(df_future, proportions)
     
-    for scenario in cost_dict:
-        # Scenarios are base, adjusted
-        location_costs = cost_dict[scenario]     
-        # Get the costs over the specified time period.
-        cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=location_costs, step_size=step_size,
-                                 inflation=inflation)
-        future_costs[scenario] = cost_ts
+    # Scenarios are base, adjusted
+    location_costs = cost_dict
+    # Get the costs over the specified time period.
+    cost_ts = create_cost_ts(subcategory_pops_ts=proportioned_df, location_costs=location_costs, step_size=step_size,
+                             inflation=inflation)
+    future_costs = cost_ts
     
     return future_costs
