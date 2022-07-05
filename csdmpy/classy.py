@@ -274,6 +274,7 @@ class Model:
                 'x': df.index.strftime('%Y-%m-%d').to_list(),
                 'y': df[col].fillna(-1).to_list(),
                 'type': 'scatter',
+                'stackgroup': 'one',
                 'name': ' - '.join(col)
              } for col in df
         ]
