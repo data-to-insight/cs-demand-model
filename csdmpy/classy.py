@@ -240,6 +240,17 @@ class Model:
              'mode': 'lines',
              'name': 'Forecast start'}
         )
+        
+        # displays reference period on graph
+        sstart, eend = self.ref_start, self.ref_end
+        tracey_beaker.append(
+            {'x': [sstart, eend],
+            'y': [0, df.max().max(),],
+            'type': 'bar',
+            'opacity': 0.1,
+            'name': 'Reference period',            
+            }
+        )
 
         return tracey_beaker
 
@@ -282,7 +293,7 @@ class Model:
         # noinspection PyTypeChecker
         tracey_beaker.append(
             {'x': [forecast_start_date.strftime('%Y-%m-%d'), ] * 2,
-             'y': [0, df.max().max()],
+             'y': [0, df.sum(axis=1).max()],
              'type': 'scatter',
              'line': {'dash': 'dot',
                       'width': 2},
@@ -290,4 +301,14 @@ class Model:
              'name': 'Forecast start'}
         )
 
+        # displays reference period on graph
+        sstart, eend = self.ref_start, self.ref_end
+        tracey_beaker.append(
+            {'x': [sstart, eend],
+            'y': [0, df.sum(axis=1).max(),],
+            'type': 'bar',
+            'opacity': 0.1,
+            'name': 'Reference period',            
+            }
+        )
         return tracey_beaker
