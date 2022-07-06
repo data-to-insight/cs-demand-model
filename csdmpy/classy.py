@@ -255,6 +255,16 @@ class Model:
         return tracey_beaker
 
     @property
+    def csv_costs(self):
+        df = pd.concat([self.past_costs, self.future_costs])
+        return df.to_csv()
+        
+    @property
+    def csv_pops(self):
+        df = pd.concat([self.historic_pop, self.future_pop])
+        return df.to_csv()
+
+    @property
     def base_pop_graph(self):
         df = pd.concat([self.historic_pop, self.future_pop])
         forecast_start_date = pd.to_datetime(self.end_date)
