@@ -256,13 +256,24 @@ class Model:
 
     @property
     def csv_costs(self):
-        df = pd.concat([self.past_costs, self.future_costs])
-        return df.to_csv()
+        base_csv = pd.concat([self.past_costs, self.future_costs]).to_csv()
+        return base_csv
+
+    @property
+    def adj_csv_costs(self):
+        adj_csv = pd.concat([self.past_costs, self.adjusted_future_costs]).to_csv()
+        return adj_csv
         
     @property
     def csv_pops(self):
-        df = pd.concat([self.historic_pop, self.future_pop])
-        return df.to_csv()
+        base_csv = pd.concat([self.historic_pop, self.future_pop]).to_csv()
+        return base_csv
+    
+    @property
+    def adj_csv_pops(self):
+        adj_csv = pd.concat([self.historic_pop, self.adjusted_future_pop]).to_csv()
+        return adj_csv
+
 
     @property
     def base_pop_graph(self):
