@@ -6,6 +6,30 @@ from csdmpy.config import NOT_IN_CARE
 
 import numpy as np
 
+def get_default_proportions(df, start=None, end=None,):
+    if not start:
+        # use the earliest date in the data as the default start date.
+        start = df[['DECOM', 'DEC']].min().min()
+    if not end:
+        # use the latest date in the data as the defualt end date.
+        end = df[['DECOM', 'DEC']].min().min()
+
+    # get only the episodes that exist in the reference period.
+    # TODO check that truncate works here as expected.
+    ref_df = df.truncate(before=start, after=end)
+
+    ## Should the proportions be calculated by day and averaged over the period?. I do not think so. 
+    ## These are only meant to be approximations.
+
+    # count the number of subplacements in the period.
+    subplacements = ref_df.groupby('placement_type')['PLACE'].value_counts()
+    # calculate how subplacements are proportional to main placements.
+    default_props = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(2)) 
+    # convert to expected format: nested dictionary.
+    default_props = {level: subplacements.xs(level).to_dict() for level in subplacements.index.levels[0]}
+
+    return default_props
+
 def get_daily_pops_new_way(df, start=None, end=None, bin_defs=None):
     if not start:
         start = df[['DECOM', 'DEC']].min().min()
