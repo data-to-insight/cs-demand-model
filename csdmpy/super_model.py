@@ -18,15 +18,24 @@ def get_default_proportions(df, start=None, end=None,):
     # TODO check that truncate works here as expected.
     ref_df = df.truncate(before=start, after=end)
 
-    ## Should the proportions be calculated by day and averaged over the period?. I do not think so. 
-    ## These are only meant to be approximations.
+    """For each day, the proportion split among subplacement types consists of dividing the 
+    number of children in each subplacement by the total number of children in that placement on that day.
+    Hence for x days, the proportion split will be the number of days spent in each subplacement divided by 
+    the number of days recorded in the placement by all the episodes which occurred during x days."""
+
+    ref_df['days_in_place'] = (ref_df['DEC'] - ref_df['DECOM']).dt.days
 
     # count the number of subplacements in the period.
-    subplacements = ref_df.groupby('placement_type')['PLACE'].value_counts()
+    subplacements = ref_df.groupby(['placement_type', 'placement_subtype'])['days_in_place'].sum()
+    
     # calculate how subplacements are proportional to main placements.
     default_props = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(2)) 
-    # convert to expected format: nested dictionary.
-    default_props = {level: subplacements.xs(level).to_dict() for level in subplacements.index.levels[0]}
+    
+    # TODO fill in missing subplacements and their proportions. However, I think it's best to let the user decide instead.
+
+    # convert to expected format: flat dictionary.
+    subplacements.index = subplacements.index.droplevels(level=0)
+    default_props = subplacements.to_dict()
 
     return default_props
 
