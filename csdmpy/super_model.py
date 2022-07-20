@@ -3,6 +3,7 @@ import pandas as pd
 from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_age_bin
 from csdmpy.config import age_brackets as bin_defs
 from csdmpy.config import NOT_IN_CARE
+from csdmpy.utils import truncate
 
 import numpy as np
 
@@ -12,11 +13,11 @@ def get_default_proportions(df, start=None, end=None,):
         start = df[['DECOM', 'DEC']].min().min()
     if not end:
         # use the latest date in the data as the defualt end date.
-        end = df[['DECOM', 'DEC']].min().min()
+        end = df[['DECOM', 'DEC']].max().max()
 
     # get only the episodes that exist in the reference period.
-    # TODO check that truncate works here as expected.
-    ref_df = df.truncate(before=start, after=end)
+    # clip so that episode days which exist out of period are not considered.
+    ref_df = truncate(df.copy(), start_date=start, end_date=end, close=True, clip=True)
 
     """For each day, the proportion split among subplacement types consists of dividing the 
     number of children in each subplacement by the total number of children in that placement on that day.
@@ -29,12 +30,14 @@ def get_default_proportions(df, start=None, end=None,):
     subplacements = ref_df.groupby(['placement_type', 'placement_subtype'])['days_in_place'].sum()
     
     # calculate how subplacements are proportional to main placements.
-    default_props = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(2)) 
+    subplacements = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(3)) 
+    """3 decimal places have a lower tendency to sum up to more than 1 than if the results were rounded to 2 decimal places.
+    Try setting the reference period to 01/06/2016 - 01/06/2017 to replicate the bug where the sum passes 1 because of rounding up."""
     
-    # TODO fill in missing subplacements and their proportions. However, I think it's best to let the user decide instead.
-
+    """TODO what happpens when a subplacement is calculated to have a proportion of zero?. Should something happen?
+        Fill in zero for missing proportions so that they do not flag an error in the frontend."""
     # convert to expected format: flat dictionary.
-    subplacements.index = subplacements.index.droplevels(level=0)
+    subplacements.index = subplacements.index.droplevel(level=0)
     default_props = subplacements.to_dict()
 
     return default_props
