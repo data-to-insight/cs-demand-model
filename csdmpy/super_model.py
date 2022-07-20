@@ -2,7 +2,7 @@ import pandas as pd
 
 from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_age_bin
 from csdmpy.config import age_brackets as bin_defs
-from csdmpy.config import NOT_IN_CARE
+from csdmpy.config import NOT_IN_CARE, all_zero_props
 from csdmpy.utils import truncate
 
 import numpy as np
@@ -39,6 +39,10 @@ def get_default_proportions(df, start=None, end=None,):
     # convert to expected format: flat dictionary.
     subplacements.index = subplacements.index.droplevel(level=0)
     default_props = subplacements.to_dict()
+
+    # all values that are not calculated should be zero. Values that exist are filled in, else they stay as zero.
+    default_props = all_zero_props | default_props
+    # Read about the above line here: https://stackoverflow.com/questions/38987/how-do-i-merge-two-dictionaries-in-a-single-expression
 
     return default_props
 

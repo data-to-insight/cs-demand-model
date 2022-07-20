@@ -36,10 +36,18 @@ cost_params_map = {
     'other_secure_home': ('Other', 'Secure home'),
     'other_placed_with_family': ('Other', 'Placed with family'),
     'other_other': ('Other', 'Other')
+    # NB the I in Resi's in-house is capitalised to prevent it from cancelling out with the in-house of Foster placements.
 }
-
-
-
-
+all_zero_props = {
+    'foster_friend_relative': 0,
+    'foster_in_house': 0,
+    'foster_IFA': 0,
+    'resi_in_house': 0,
+    'resi_external': 0,
+    'supported_supported': 0,
+    'other_secure_home': 0,
+    'other_placed_with_family': 0,
+    'other_other': 0
+}
 class UploadError(Exception):
     pass
