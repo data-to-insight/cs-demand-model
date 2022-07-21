@@ -46,6 +46,7 @@ class Model:
     past_costs = None
     future_costs = None
     adjusted_future_costs = None
+    ref_proportions = None
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
         print('INITTING MODEL INISTANCE')
@@ -98,6 +99,8 @@ class Model:
         df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.ref_start, self.ref_end, self.ts_info
         step_size = self.step_size
         
+        self.ref_proportions = get_default_proportions(df, start_date, end_date)
+
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
 
         pops = get_daily_pops_new_way(df, start_date, end_date)
@@ -219,6 +222,12 @@ class Model:
         if adjustments:
             self.adjusted_future_costs = adjusted_future_costs
 
+
+    @property
+    def default_props(self):
+        default_props = self.ref_proportions
+        # map it into flat structure expected by frontend.
+        return default_props
 
     @property
     def csv_costs(self):

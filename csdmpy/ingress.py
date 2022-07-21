@@ -44,6 +44,7 @@ def the_ingress_procedure(files_list):
     all_903 = pd.concat(yearly_dfs)
     all_903 = read_combined_903(all_903)
     all_903['placement_type'] = all_903['PLACE'].apply(categorize_placement)
+    all_903['placement_subtype'] = all_903['PLACE'].apply(name_subplacement)
     all_903.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
 
     all_903['placement_type_after'] = (all_903
@@ -180,6 +181,27 @@ def categorize_placement(code):
         return 'Supported'
     else:
         return 'Other'
+
+# TODO fill in real codes. This mapping has not been confirmed. 
+def name_subplacement(code):
+    if code in ['U1', 'U2', 'U3']:
+        return 'foster_friend_relative'
+    elif code in ['U4', 'U5']:
+        return 'foster_in_house'
+    elif code in ['U6']:
+        return 'foster_IFA'
+    elif code in ['R1']:
+        return 'resi_in_house'
+    elif code in ['K2']:
+        return 'resi_external'
+    elif code in ['H5', 'P2']:
+        return 'supported_supported'
+    elif code in ['K1']:
+        return 'other_secure_home'
+    elif code in ['P1', 'R3']:
+        return 'other_placed_with_family'
+    else:
+        return 'other_other'
 
 
 def get_daily_data(df, ):
