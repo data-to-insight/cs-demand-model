@@ -122,12 +122,23 @@ def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
         valid_places = bin_defs[ab]
         if ab in bins_in_data:
             t_matrix = transition_rates[ab].copy()
+
+            for pt in set(valid_places) - set(t_matrix.columns):
+                t_matrix.loc[:, pt] = 0
+
+            for pt in set(valid_places) - set(t_matrix.index):
+                t_matrix.loc[pt, :] = 0
+
             for pt in t_matrix.columns:
                 print('-------->', pt, '<---')
                 t_matrix.loc[pt, pt] = 1 - (t_matrix
                                             .loc[:, pt]
                                             .drop(index=pt)
                                             .sum())
+            print('))))))) valid places', valid_places)
+            print('))))))) t_mat', t_matrix)
+
+
             t_matrix = t_matrix.loc[valid_places, valid_places]
         else:
             t_matrix = pd.DataFrame(data=np.eye(len(valid_places)),
