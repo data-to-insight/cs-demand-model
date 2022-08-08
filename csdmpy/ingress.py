@@ -19,7 +19,7 @@ hacky_timez_key_map = {
 }
 
 def hacky_timez_input_workaround(files_dict):
-    # this should not be a this
+    # this should not be a thing
     # update the_ingress_procedure to make use of the dict structure from the frontend
     files_list = []
     for year in files_dict:
@@ -40,8 +40,14 @@ def hacky_timez_input_workaround(files_dict):
 
 
 def the_ingress_procedure(files_list):
-    files_list = hacky_timez_input_workaround(files_list.to_py())
-    print(type(files_list))
+    # !!!
+    try:
+        files_list = files_list.to_py()
+    except AttributeError:
+        pass
+    files_list = hacky_timez_input_workaround(files_list)
+    # !!!
+
     try:
         remaining_files = files_list.copy()
     except AttributeError:
