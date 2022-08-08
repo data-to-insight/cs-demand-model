@@ -95,15 +95,17 @@ def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
 
     popal, transal = pops.align(transitions)
 
-    print('~~~~~~~~~~~~~~~~~~~\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n',
-          transitions['16 to 18', 'Resi', 'Supported'].apply(['min', 'max']))
-    print(((transitions['16 to 18', 'Resi', 'Supported'] != 0) & (pops['16 to 18', 'Resi'] == 0)).any().any())
-    trans_nonz = (transal['16 to 18', 'Resi', 'Supported'] != 0)
-    pops_zero = (popal['16 to 18', 'Resi', 'Supported'] == 0)
+    print('123123@@@@@@@@@@@@@@@==============@@@@@@@@@@@@@@@@@')
+    print(transitions.columns, '\n', transitions.index)
+    #print('~~~~~~~~~~~~~~~~~~~\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n',
+    #      transitions['16 to 18', 'Resi', 'Supported'].apply(['min', 'max']))
+    #print(((transitions['16 to 18', 'Resi', 'Supported'] != 0) & (pops['16 to 18', 'Resi'] == 0)).any().any())
+    #trans_nonz = (transal['16 to 18', 'Resi', 'Supported'] != 0)
+    #pops_zero = (popal['16 to 18', 'Resi', 'Supported'] == 0)
 
-    print((trans_nonz & pops_zero).any())
-    print('POPS\n',popal[trans_nonz & pops_zero].to_string())
-    print('TRANS\n', transal[trans_nonz & pops_zero].to_string())
+    #print((trans_nonz & pops_zero).any())
+    #print('POPS\n',popal[trans_nonz & pops_zero].to_string())
+    #print('TRANS\n', transal[trans_nonz & pops_zero].to_string())
 
     #print(born_slippy.index)
     #print(transitions.loc[_s[born_slippy.any(axis=1)], :], sep='\n==============\n'*2)

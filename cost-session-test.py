@@ -27,7 +27,7 @@ session = ApiSession(ezfiles())
 
 session.calculate_model(model_params, [])
 
-session.calculate_costs(costs, props)
+session.calculate_costs(costs, None)
 
 print('POPS =================')
 print(session.model.future_pop.to_string())

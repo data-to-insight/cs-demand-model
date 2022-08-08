@@ -5,28 +5,27 @@ from .config import ACCEPTED_DATE_FORMATS, cost_params_map
 import os
 from warnings import warn
 
-test_903_dir = Path(__file__).parent / 'tests' / 'fake903_5yrs'
 
 def ezfiles():
+    test_903_dir = os.path.join(os.path.dirname(__file__), 'tests', 'fake903_5yrs')
     year_list = [2017, 2018, 2019, 2020, 2021]
     tables_needed = ('header', 'episodes')
+    table_headers = {
+        'Episodes':
+            'CHILD,DECOM,RNE,LS,CIN,PLACE,PLACE_PROVIDER,DEC,REC,REASON_PLACE_CHANGE,HOME_POST,PL_POST'.split(','),
+        'Header':
+            'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
+    }
     files_list = []
     for year in year_list:
-        year_dir = test_903_dir / str(year)
+        year_dir = os.path.join(test_903_dir, str(year))
         label = str(max(year_list) - year) + "_ago"
         for table_name in tables_needed:
-            table_path = year_dir / (table_name + '.csv')
-            file_bytes = table_path.read_bytes()
-            files_list.append({
-                'description': label,
-                'year': f'{year - 1}/{year % 1000}',
-                'name': table_path.name,
-                'path': str(table_path.resolve()),
-                'last_modified': int(table_path.stat().st_mtime),
-                'size': len(file_bytes),
-                'type': 'text/csv',
-                'fileText': file_bytes,
-            })
+            table_path = os.path.join(year_dir, table_name + '.csv')
+            with open(table_path, 'r') as file:
+                file_bytes = file.read().encode('utf-8')
+            files_list.append({'description': label,
+                               'fileText': file_bytes})
     return files_list
 
 
@@ -85,7 +84,6 @@ def make_date_index(start_date, end_date, step_size, align_end=False):
 
 
 def truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC', close=False, clip=False):
-    print('######################################################\n', df)
     df = df.copy()
 
     if close:
@@ -133,7 +131,7 @@ def param_handover(key_mapping_dict, param_dict):
     ## Inputs
     key_mapping_dict (dict mapping keys of param_dict to keys of costs_dict)
     param_dict (flat dict containing (among other things) costs and proportions, for each subcategory)
-     
+
     ## Returns.
     costs_params (dict of params for calculate_costs  - cost_dict, proportions, , inflation (expect none, false, or float), step_size)
 
@@ -141,7 +139,7 @@ def param_handover(key_mapping_dict, param_dict):
     """
     # get all the keys in param_dict that match cost params in the key_mapping dict.
     # separate them out into the cost values and the proportion values.
-    # proportions: remove the proportion suffix 
+    # proportions: remove the proportion suffix
     # both: assign the values and return the nested proportions and costs dictionaries and then everything that was not selected out of param_dict.
 
 
@@ -165,113 +163,6 @@ def flat_to_nest(flat, mapping_dict):
         else:
             warn(f'key "{key}" not found in input "{flat}"')
     return nest
-
-
-def validate_model_params(model_params):
-    errors = {}
-    for param_name, value in model_params.items():
-        if value == '':
-            errors[param_name] = False
-        elif pd.isna(pd.to_datetime(value, format='%d/%m/%Y', errors='coerce')):
-            errors[param_name] = 'Please enter a valid date in the format dd/mm/yyyy'
-    all_dates = ['history_start', 'reference_start', 'reference_end', 'history_end', 'prediction_end']
-
-    if errors:
-        return errors
-    # ...or if all the dates are valid, check that they're in the right order
-
-
-def validate_costs(params):
-    all_good = True  # //return a boolean as well so we dont have to loop thru to check if there are any errors
-
-    subcats = ['Fostering (friend/relative)',
-             'Fostering (in-house)',
-             'Fostering (IFA)',
-             'Residential (in-house)',
-             'Residential (external)',
-             'Supported',
-             'Secure home',
-             'Placed with family',
-             'Other']
-    if '' in params.values() or set(params.keys()) != set(subcats):
-        all_good = False
-
-    errors = {}
-    for param_name, value in params.items():
-        try:
-            i = float(value)
-            if i < 0:
-                errors[param_name] = 'Please enter a positive number'
-                all_good = False
-        except ValueError:
-            if value != '':
-                errors[param_name] = 'Please enter a positive number'
-                all_good = False
-            else:
-                errors[param_name] = False
-    return all_good, errors
-
-subcats = ['Fostering (friend/relative)',
-             'Fostering (in-house)',
-             'Fostering (IFA)',
-             'Residential (in-house)',
-             'Residential (external)',
-             'Supported',
-             'Secure home',
-             'Placed with family',
-             'Other']
-
-
-def validate_proportions(props_dict):
-    all_good = True  # //return a boolean as well so we dont have to loop thru to check if there are any errors
-
-    if '' in props_dict.values() or set(props_dict.keys()) != set(subcats):
-        all_good = False
-
-    props_dict = props_dict.copy()
-    errors = {}
-
-    # if any values can't be cast to float, highlight those as errors
-    # only if none are do we then check they add up to one
-
-    witch = False  # does it float?
-    for key, val in props_dict.items():
-        witch = True
-        try:
-            props_dict[key] = float(val)
-        except ValueError:
-            witch = False
-            if val != '':
-                all_good = False
-                errors[key] = 'Please enter a number between 0 and 1'
-            else:
-                errors[key] = False
-        if witch:
-            if not 0 <= props_dict[key] <= 1.000001:
-                print(props_dict[key])
-                all_good = False
-                errors[key] = 'Please enter a number between 0 and 1'
-
-    # get user to fix type errors first (?)
-    if not witch or not all_good:
-        return all_good, errors
-
-    # check values for each category add up to 1
-    props_nested = flat_to_nest(props_dict, cost_params_map)
-    for key in props_nested:
-        err_keys = [i for i in subcats if cost_params_map[i][0] == key][0:1]  # just show it on the first one
-
-        category_vals = [float(n) for n in props_nested[key].values() if n.replace('.', '', 1).isdigit()]
-
-        if abs(1 - sum(category_vals)) > 0.000001:
-            print('~#~~~', key, ':::propssumto:::', sum(category_vals))
-            result = f'Make sure the ratios for subcategories of "{key}" add up to exactly 1'
-            all_good = False
-        else:
-            result = False
-        for i in err_keys:
-            errors[i] = result
-    return all_good, errors
 
 
 def apdd(df, ab=None, pt=None, decom=None, dec=None):

@@ -10,7 +10,37 @@ from .config import MAX_YEARS_OF_DATA, NOT_IN_CARE, table_headers, age_brackets,
 from warnings import warn
 from .utils import split_age_bin
 
+hacky_timez_key_map = {
+    '2021/22': '0_ago',
+    '2020/21': '1_ago',
+    '2019/20': '2_ago',
+    '2018/19': '3_ago',
+    '2017/18': '4_ago',
+}
+
+def hacky_timez_input_workaround(files_dict):
+    # this should not be a this
+    # update the_ingress_procedure to make use of the dict structure from the frontend
+    files_list = []
+    for year in files_dict:
+        try:
+            x_ago = hacky_timez_key_map[year]
+        except KeyError:
+            warn(f'idk what {year} is; discarding {len(files_dict[year])} files.')
+            continue
+        for file in files_dict[year]:
+            files_list.append({
+                'description': x_ago,
+                'fileText': file['fileText'],
+            })
+    print('L@@K - -- - - - - -- --- \n'
+          ' **** * **** ** **** * * \n',
+          files_list)
+    return files_list
+
+
 def the_ingress_procedure(files_list):
+    files_list = hacky_timez_input_workaround(files_list.to_py())
     print(type(files_list))
     try:
         remaining_files = files_list.copy()
@@ -39,7 +69,7 @@ def the_ingress_procedure(files_list):
     if remaining_files:
         # maybe just spit a warning + tell auntie goog.
         remaining_descriptions = {file['description'] for file in remaining_files}
-        warn(f"Invalid file description(s) received: {', '.join(remaining_descriptions)}")
+        warn(f"Invalid file description(s) received: { ', '.join(remaining_descriptions) }")
 
     all_903 = pd.concat(yearly_dfs)
     all_903 = read_combined_903(all_903)
@@ -123,7 +153,7 @@ def identify_tables(matching_files, table_headers):
 
 
 def combine_files_for_year(the_years_files, years_ago):
-    print(the_years_files)
+    print(f'Files received for {years_ago} years ago: {list(the_years_files.keys())}')
     try:
         header = the_years_files['Header']
         episodes = the_years_files['Episodes']
@@ -136,6 +166,7 @@ def combine_files_for_year(the_years_files, years_ago):
     episodes['DEC'] = pd.to_datetime(episodes['DEC'], format='%d/%m/%Y')
 
     merged = header.merge(episodes, how='inner', on='CHILD', suffixes=('_header', '_episodes'))
+
 
     merged['age'] = (merged['DECOM'] - merged['DOB']).dt.days / 365.24
 
@@ -156,7 +187,6 @@ def read_combined_903(combined):
     # If a child has two episodes starting on the same day (usually if NA in one year and then done in next) keep the latest non-NA finish date
     combined.drop_duplicates(['CHILD', 'DECOM'], keep='last', inplace=True)
     print(f'{len(combined)} records remaining after removing episodes that start on the same date.')
-
 
     # If a child has two episodes with the same end date, keep the longer one. This also works for open episodes - if there are two open, keep the larger one.
     combined.drop_duplicates(['CHILD', 'DEC'], keep='first', inplace=True)

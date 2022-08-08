@@ -1,5 +1,6 @@
 from dataclasses import field
 
+import pandas as pd
 from marshmallow_dataclass import dataclass
 from datetime import date
 from typing import Mapping, Any
@@ -46,7 +47,7 @@ class Model:
     past_costs = None
     future_costs = None
     adjusted_future_costs = None
-    ref_proportions = None
+    _default_proportions = None
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
         print('INITTING MODEL INISTANCE')
@@ -99,7 +100,7 @@ class Model:
         df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.ref_start, self.ref_end, self.ts_info
         step_size = self.step_size
         
-        self.ref_proportions = get_default_proportions(df, start_date, end_date)
+        self._default_props = get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
 
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
 
@@ -209,6 +210,8 @@ class Model:
             self.adj_upper_pop, self.adj_lower_pop = deviation_bounds(adjusted_future_pop, adj_var_df)
 
     def calculate_costs(self, cost_params):
+        if not cost_params['proportions']:
+            cost_params['proportions'] = self.default_props
         future_costs = calculate_costs(self.future_pop, **cost_params)
         adjustments = self.adjustments
         if adjustments:
@@ -225,7 +228,7 @@ class Model:
 
     @property
     def default_props(self):
-        default_props = self.ref_proportions
+        default_props = self._default_props
         # map it into flat structure expected by frontend.
         return default_props
 
