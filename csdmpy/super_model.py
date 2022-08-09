@@ -2,7 +2,7 @@ import pandas as pd
 
 from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_age_bin
 from csdmpy.config import age_brackets as bin_defs
-from csdmpy.config import NOT_IN_CARE, all_zero_props
+from csdmpy.config import NOT_IN_CARE, all_zero_props, next_brackets
 from csdmpy.utils import truncate
 
 import numpy as np
@@ -176,8 +176,15 @@ def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
     return {i: step_size_t_probs_dict[i] for i in unique_step_sizes}
 
 
-def apply_ageing(pop, ageing_dict):
-    return pop
+def apply_ageing(pops, ageing_dict):
+    for ab in pops.columns.get_level_values('age_bin'):
+        aged_out = pops.xs(ab, level='age_bin') * ageing_dict[ab]
+        pops[ab] -= aged_out
+        next_ab = list(bin_defs.keys()).index(ab) + 1
+        if next_ab is not None:
+            pops[next_ab] += aged_out
+        print(ab + ': ' + aged_out)
+    return pops
 
 
 def step_to_days(step_size):
@@ -320,7 +327,7 @@ def get_daily_transition_rates(df, cat_list=None, start_date=None, end_date=None
 
     # probability of being in the same placement type tomorrow
     # (!) we should change how this works if we want to take into account
-    #     moves between two placements of the same type
+    #     moves between two placements of the same type (eg to estimate costs from setting up new placements)
     mind = pd.MultiIndex.from_product([cat_list] * 2)
     for i in mind:
         if i not in trans_rates.index:
@@ -374,22 +381,24 @@ def apply_adjustments(pops, adjustments, step_days):
     # TODO: calculate relative adjustments from unadjusted population
     # adjustments = pd.DataFrame(adjustments)
     # ...
-    print(', @@@ BEFORE ADJUSTING@ @ @ @',pops)
+    print('|:|, @@@ BEFORE ADJUSTING@ @ @ @', '|:|' + pops.to_string().replace('\n', '\n|:|'))
 
+    pops = pops.copy()
+    print('|:| step days: ', step_days)
     for adj in adjustments:
+        print(adj)
         age = adj['age']
         moving_from = adj['from']
         moving_to = adj['to']
         amount = int(adj['n']) * step_days / 30.44
+        print(f"|:| {int(adj['n'])} * {step_days} / {30.44}")
         adjustment_type = 'absolute'  # adj['adjustment_type']
         if adjustment_type == 'absolute' and moving_from != 'New care entrant':
             amount = min(amount, pops[age, moving_from])
-        elif adjustment_type == 'relative':
-            amount = amount * pops[moving_from]
         if moving_to != 'Care leaver':
             pops[(age, moving_to)] += amount
         if moving_from != 'New care entrant':
             pops[(age, moving_from)] -= amount
-    print(',.,.,, AFTER ADJUSTING @@@ @ @ @ @', pops)
+    print('|:|,.,.,, AFTER ADJUSTING @@@ @ @ @ @', '|:|' + pops.to_string().replace('\n', '\n|:|'))
 
     return pops
