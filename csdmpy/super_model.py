@@ -30,7 +30,7 @@ def get_default_proportions(df, start=None, end=None,):
     subplacements = ref_df.groupby(['placement_type', 'placement_subtype'])['days_in_place'].sum()
     
     # calculate how subplacements are proportional to main placements.
-    subplacements = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(3)) 
+    subplacements = subplacements.groupby(level=0).transform(lambda x: (x / x.sum()).round(3))
     """3 decimal places have a lower tendency to sum up to more than 1 than if the results were rounded to 2 decimal places.
     Try setting the reference period to 01/06/2016 - 01/06/2017 to replicate the bug where the sum passes 1 because of rounding up."""
     
@@ -95,20 +95,6 @@ def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
 
     popal, transal = pops.align(transitions)
 
-    print('123123@@@@@@@@@@@@@@@==============@@@@@@@@@@@@@@@@@')
-    print(transitions.columns, '\n', transitions.index)
-    #print('~~~~~~~~~~~~~~~~~~~\n~ ~ ~ ~ ~ ~ ~ ~ ~ ~\n',
-    #      transitions['16 to 18', 'Resi', 'Supported'].apply(['min', 'max']))
-    #print(((transitions['16 to 18', 'Resi', 'Supported'] != 0) & (pops['16 to 18', 'Resi'] == 0)).any().any())
-    #trans_nonz = (transal['16 to 18', 'Resi', 'Supported'] != 0)
-    #pops_zero = (popal['16 to 18', 'Resi', 'Supported'] == 0)
-
-    #print((trans_nonz & pops_zero).any())
-    #print('POPS\n',popal[trans_nonz & pops_zero].to_string())
-    #print('TRANS\n', transal[trans_nonz & pops_zero].to_string())
-
-    #print(born_slippy.index)
-    #print(transitions.loc[_s[born_slippy.any(axis=1)], :], sep='\n==============\n'*2)
     #print(born_slippy.any(axis=1))
 
     transition_rates = ((transal / popal.shift(1).fillna(method='bfill'))
@@ -130,21 +116,19 @@ def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
                 t_matrix.loc[pt, :] = 0
 
             for pt in t_matrix.columns:
-                print('-------->', pt, '<---')
+                #print('-------->', pt, '<---')
                 t_matrix.loc[pt, pt] = 1 - (t_matrix
                                             .loc[:, pt]
                                             .drop(index=pt)
                                             .sum())
-            print('))))))) valid places', valid_places)
-            print('))))))) t_mat', t_matrix)
-
+            #print('))))))) valid places', valid_places)
+            #print('))))))) t_mat', t_matrix)
 
             t_matrix = t_matrix.loc[valid_places, valid_places]
         else:
             t_matrix = pd.DataFrame(data=np.eye(len(valid_places)),
                                     index=valid_places,
                                     columns=valid_places)
-        print(t_matrix.to_string())
         transidict[ab] = t_matrix
     return transidict
 
@@ -177,13 +161,31 @@ def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
 
 
 def apply_ageing(pops, ageing_dict):
-    for ab in pops.columns.get_level_values('age_bin'):
-        aged_out = pops.xs(ab, level='age_bin') * ageing_dict[ab]
-        pops[ab] -= aged_out
-        next_ab = list(bin_defs.keys()).index(ab) + 1
-        if next_ab is not None:
-            pops[next_ab] += aged_out
-        print(ab + ': ' + aged_out)
+    #print('POPS\n* * *  * * \n', pops)
+    pops=pops.copy()
+    #print(ageing_dict)
+    age_bin_list = list(bin_defs.keys())
+    for ab in pops.index.get_level_values('age_bin'):
+        #print(' ???\n', pops[ab])
+        aged_out = pops.xs(ab, level='age_bin', drop_level=False) * ageing_dict[ab]
+        #print('ageout\n',aged_out)
+        pops[ab] = pops.xs(ab, level='age_bin', drop_level=False) - aged_out
+
+        #print('POPS (22) \n* * *  * * \n', pops)
+
+        try:
+            next_ab = age_bin_list[age_bin_list.index(ab) + 1]
+        except IndexError:
+            continue
+        mi = pd.MultiIndex.from_product([(next_ab, ), pops[ab].index], names=['age_bin', 'placement_type'])
+        #print(mi)
+        #print('HEY!!!', pops[mi].droplevel(0))
+        #print('YA!!!!', aged_out[ab])
+        #print(pops)
+        pops[mi] = pops[mi].values + aged_out[ab].values # is this safe?
+        #print('POPS [333] \n* * *  * * \n', pops)
+
+        #print(ab + ': ' + aged_out.to_string())
     return pops
 
 

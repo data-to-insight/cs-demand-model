@@ -2,6 +2,8 @@ from csdmpy.classy import Model, ModelParams
 from csdmpy.utils import ezfiles
 from csdmpy.config import age_brackets as bin_defs
 import pandas as pd
+import matplotlib.pyplot as pp
+
 from csdmpy.api import ApiSession
 from csdmpy.config import cost_params_map
 
@@ -27,9 +29,29 @@ session = ApiSession(ezfiles())
 
 session.calculate_model(model_params, [])
 
-session.calculate_costs(costs, None)
+session.calculate_costs(costs, props, None)
+print('----------------')
+session.model.print_everything()
 
-print('POPS =================')
+
+'''print('POPS =================')
 print(session.model.future_pop.to_string())
 print('================= COSTS')
 print(session.model.future_costs.to_string())
+all_pops = pd.concat([session.model.historic_pop, session.model.future_pop])
+
+p = all_pops.plot()
+p.axvline(end, ls=":", c="g")
+fig, axe = pp.subplots(2, figsize=[15, 9])
+axe[0].set_title('base pops')
+axe[0].plot(all_pops, marker='+')
+axe[0].legend(all_pops.columns)
+axe[0].axvline(hist_end, ls=':', c='g')
+axe[0].axvspan(ref_start, ref_end, color='y', alpha=0.3)
+
+axe[1].set_title('adjusted pops')
+axe[1].plot(adj_pops,marker='x')
+axe[1].axvline(hist_end, ls=':', c='g')
+axe[1].axvspan(ref_start, ref_end, color='y', alpha=0.3)
+
+'''

@@ -28,14 +28,14 @@ def hacky_timez_input_workaround(files_dict):
         except KeyError:
             warn(f'idk what {year} is; discarding {len(files_dict[year])} files.')
             continue
+        except TypeError:
+            print(year)
+            print(type(year), type(hacky_timez_key_map))
         for file in files_dict[year]:
             files_list.append({
                 'description': x_ago,
                 'fileText': file['fileText'],
             })
-    print('L@@K - -- - - - - -- --- \n'
-          ' **** * **** ** **** * * \n',
-          files_list)
     return files_list
 
 
@@ -45,7 +45,8 @@ def the_ingress_procedure(files_list):
         files_list = files_list.to_py()
     except AttributeError:
         pass
-    files_list = hacky_timez_input_workaround(files_list)
+    if isinstance(files_list, dict):
+        files_list = hacky_timez_input_workaround(files_list)
     # !!!
 
     try:
@@ -113,6 +114,7 @@ def the_ingress_procedure(files_list):
     all_903.loc[out_before_mask, 'placement_type_before'] = NOT_IN_CARE
 
     all_903['age_bin'] = all_903['age'].apply(get_in_the_bin)
+    all_903['end_age_bin'] = all_903['end_age'].apply(get_in_the_bin)
 
     # date_df = get_daily_data(all_903)
 
@@ -147,9 +149,7 @@ def identify_tables(matching_files, table_headers):
             raise UploadError(f"Failed to read file uploaded under {label} - ensure all files are valid CSVs!")
 
         for table_name, headers in table_headers.items():  # dict - {table_name: set_of_columns for i in whatever}
-            print(table_name, headers)
             if len(set(headers) - set(df.columns)) == 0:
-                print(table_name, 'FOUND')
                 if table_name in year_dfs:
                     raise UploadError(f"Already added {table_name} - make sure you only add each table once!")
                 else:
@@ -173,8 +173,8 @@ def combine_files_for_year(the_years_files, years_ago):
 
     merged = header.merge(episodes, how='inner', on='CHILD', suffixes=('_header', '_episodes'))
 
-
     merged['age'] = (merged['DECOM'] - merged['DOB']).dt.days / 365.24
+    merged['end_age'] = (merged['DEC'] - merged['DOB']).dt.days / 365.24
 
     return merged
 

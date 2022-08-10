@@ -6,14 +6,14 @@ from datetime import date
 from typing import Mapping, Any
 
 from csdmpy.config import age_brackets
-from csdmpy.super_model import *
+from csdmpy.super_model import *  # ...
 from csdmpy.costs import calculate_costs
 from csdmpy.utils import deviation_bounds
 
 
 @dataclass(frozen=True)
 class ModelParams:
-    history_start: date  # these should be dates but im doing late night hacky business
+    history_start: date
     reference_start: date
     reference_end: date
     history_end: date
@@ -50,9 +50,9 @@ class Model:
     _default_proportions = None
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
-        print('INITTING MODEL INISTANCE')
-        print('PAMS:', model_params)
-        print('ADJS:', adjustments)
+        print('>> * >> * >> INITIALISING MODEL INISTANCE')
+        print('>>> MODEL PARAMS:\n', model_params)
+        print('>>> ADJUSTMENTS:\n', adjustments)
         self.df = df
 
         self.start_date = model_params.history_start
@@ -76,15 +76,15 @@ class Model:
         historic_pop = make_populations_ts(df, bin_defs, start_date, end_date, step_size).sort_index()
         ts_info = make_date_index(end_date, horizon_date, step_size, align_end=False).iloc[1:]
         future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index)
-
+        print('>> * >> * >> SETTING UP TIME SERIES')
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
-        print('* *][*][*] * * (( HISTORIC POPS ))\n')
+        print('>>> HISTORIC POPS:\n')
         print(historic_pop.to_string())
-        print('[[*]] *]] * * * * (( FUTURE POPS ))\n')
-        print(future_pop.to_string())
+        print('>>> FUTURE TIMESTAMPS:\n')
+        print(', '.join(str(i) for i in future_pop.index))
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
 
-        initial_pop = historic_pop.loc[historic_pop.index.max()].copy()
+        initial_pop = historic_pop.loc[historic_pop.index.max()].copy().astype(float)
 
         self.ts_info = ts_info
         self.historic_pop = historic_pop
@@ -97,37 +97,44 @@ class Model:
             self.adjusted_future_pop = None
 
     def measure_system(self):
+
+        print('>> * >> * >> TAKNG MEASUREMENTS')
         df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.ref_start, self.ref_end, self.ts_info
         step_size = self.step_size
-        
-        self._default_props = get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
 
+        print('>>> MEASURING PROPORTIONS')
+        self._default_proportions = get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
+
+        print('>>> CALCULATING AGEING PROPORTIONS')
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
+        print(age_out_ratios)
 
+        print('>>> MEASURING DAILY TRANSITION PROBS')
         pops = get_daily_pops_new_way(df, start_date, end_date)
         #t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
         t_probs = get_daily_transitions_new_way(df, pops)
         self.t_probs = t_probs
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
-        print('[[[*] * * * * (( TRANS PROBS ))\n')
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
+        print('T matrices (coming soon)')
 
         for bracket, t_mat in t_probs.items():
             print(str(bracket) + ':', t_mat, sep='\n')
 
+        print('>>> CALCULATING STEP TRANSITON MATRICES')
         precalced_transition_matrices = calculate_timestep_transition_matrices(ts_info, t_probs)
-        
-        entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
+        max_step_t_mats = precalced_transition_matrices[max(precalced_transition_matrices)]
 
+        #print((f'{ab}:\n {T.to_json()}\n' for ab, T in max_step_t_mats.items()), sep='\n')
+
+        print('>>> CALCULATING ENTRY RATES')
+
+        entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
         print(f'[*]] * ****%%%(( ENTRANTS )) \n')
         for bracket, entrants_df in entrance.items():
             print(str(bracket) + ':', entrants_df, sep='\n')
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
 
-        print('')
-        print(precalced_transition_matrices[max(precalced_transition_matrices)])
-        
+        self.daily_probs = t_probs
         self.age_out_ratios = age_out_ratios
         self.entrant_rates = entrance
         self.step_probs = precalced_transition_matrices
@@ -141,6 +148,7 @@ class Model:
         
         precalced_transition_matrices = self.step_probs
         entrant_rates = self.entrant_rates
+        age_out_ratios = self.age_out_ratios
         next_pop = self.initial_pop.copy()
         adj_next_pop = self.initial_pop.copy()
         date_vars = pd.Series(data=1, index=next_pop.index)
@@ -161,9 +169,11 @@ class Model:
             step_days = ts_info.loc[date, 'step_days']
             days_so_far += step_days
             print(f"* * * * * * * * {date} ")
+            print('PREV POPS:\n', next_pop)
             print('Making children older...')
-            next_pop = apply_ageing(next_pop, {'fake': 'fake',
-                                               'records': 'records'})
+            next_pop = apply_ageing(next_pop, age_out_ratios)
+            if adjustments:
+                adj_next_pop = apply_ageing(adj_next_pop, age_out_ratios)
             print('Moving children around...')
             for age_bracket in next_pop.index.get_level_values('age_bin').unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
@@ -201,6 +211,7 @@ class Model:
                 adjusted_future_pop.loc[date] = adj_next_pop
                 adj_var_df.loc[date] = adj_date_vars
 
+
         self.variances = var_df # to be removed
 
         self.future_pop = future_pop  # now we can convert these to csv/whatever and send to the frontend
@@ -210,8 +221,8 @@ class Model:
             self.adj_upper_pop, self.adj_lower_pop = deviation_bounds(adjusted_future_pop, adj_var_df)
 
     def calculate_costs(self, cost_params):
-        if not cost_params['proportions']:
-            cost_params['proportions'] = self.default_props
+        if cost_params['proportions'] is None:
+            cost_params['proportions'] = self.default_proportions
         future_costs = calculate_costs(self.future_pop, **cost_params)
         adjustments = self.adjustments
         if adjustments:
@@ -225,12 +236,50 @@ class Model:
         if adjustments:
             self.adjusted_future_costs = adjusted_future_costs
 
+    def print_everything(self):
+
+        # model_params
+        print('>>> PARAMS',
+        'start_date:', self.start_date,
+        'ref_start:', self.ref_start,
+        'ref_end:', self.ref_end,
+        'end_date:', self.end_date,
+        'horizon_date:', self.horizon_date,
+        'step_size:', self.step_size, sep='\n')
+
+        # stuff that will be calculated
+        self.ts_info,
+
+
+        print('>>> POPS',
+        'historic_pop',
+        self.historic_pop.to_json(),
+        'future pop',
+        self.future_pop.to_json(),
+        'init pop',
+        self.initial_pop.to_json(), sep='\n')
+
+        print('>>> MODEL SPEC',
+            'ageing',
+            self.age_out_ratios,
+            'one day probs',
+            *[f'{ab}:\n {T.to_json()}\n\n' for ab, T in self.daily_probs.items()],
+            'max step probs',
+            f'(biggest step: {max(self.step_probs)})',
+            *[f'{ab}:\n {T.to_json()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
+
+            'daily entrants',
+            self.entrant_rates,
+
+            '_default_propotions',
+            self.default_proportions, sep='\n'
+        )
+
 
     @property
-    def default_props(self):
-        default_props = self._default_props
+    def default_proportions(self):
         # map it into flat structure expected by frontend.
-        return default_props
+        return self._default_proportions
 
     @property
     def csv_costs(self):
