@@ -157,6 +157,10 @@ class Model:
         adj_var_df = future_pop.copy()
         age_mats = self.t_probs.copy()
 
+        A_DF = pd.DataFrame(data=pd.NA, columns=future_pop.columns, index=future_pop.index)
+        T_DF = A_DF.copy()
+        E_DF = A_DF.copy()
+
         ## TRACKERS
         # initialise tracker of time since the start of the prediction. Variances are supposed to increase with time.
         days_so_far = 0
@@ -169,50 +173,49 @@ class Model:
             step_days = ts_info.loc[date, 'step_days']
             days_so_far += step_days
             print(f"* * * * * * * * {date} ")
-            print('PREV POPS:\n', next_pop)
+            prev_pop = next_pop.copy()
+            print('PREV POPS:\n', prev_pop)
             print('Making children older...')
-            next_pop = apply_ageing(next_pop, age_out_ratios)
+            aged_pop = apply_ageing(prev_pop, age_out_ratios)
+
+            ageing_changes = aged_pop - prev_pop
+
             if adjustments:
-                adj_next_pop = apply_ageing(adj_next_pop, age_out_ratios)
+                adj_prev_pop = adj_next_pop.copy()
+                adj_aged_pop = apply_ageing(adj_prev_pop, age_out_ratios)
             print('Moving children around...')
             for age_bracket in next_pop.index.get_level_values('age_bin').unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
-                # store present pop value so that it can be used in variance calculation.
-                this_pop = next_pop.copy()
 
-                next_pop[age_bracket] = T.dot(next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
+                next_pop[age_bracket] = T.dot(aged_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
+
                 if adjustments:
-                    adj_this_pop = adj_next_pop.copy()
                     adj_next_pop[age_bracket] = T.dot(adj_next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
                     adj_next_pop = apply_adjustments(adj_next_pop.copy(), adjustments, step_days)
-                
-                ## VARIANCE
-                # M^t where M is daily transition probabilities and t is time so far.
-                T_full = T_so_far[age_bracket].multiply(T) # should this be matrix or elementwise multiplication?
-                T_so_far[age_bracket] = T_full
-                # M^t x (1 – M^t) where x represents elementwise multiplication.
-                one_minusT = 1 - T_full
-                tran_mat = T_full.multiply(one_minusT)
-                if date == self.ref_start:
-                    # at the start of the prediction, the reference point, t is zero.
-                    T = self.t_probs[age_bracket]
-                    tran_mat = T.pow(0).multiply(1-T.pow(0))
-                    days_so_far = 0
-                # var[t0+t] = S(t) *  (M^t x (1 – M^t))  + R * t 
-                # variances_t_later = (tran1day^cum_days x (1 - ran1day^cumdays)) * next_pop + entrants*(cum_days)
-                date_vars[age_bracket] = tran_mat.dot(this_pop[age_bracket]) + (entrant_rates[age_bracket] * days_so_far)
-                ## date_vars[age_bracket] = ((self.t_probs[age_bracket].pow(days_so_far)).multiply(1-(self.t_probs[age_bracket].pow(days_so_far)))).dot(this_pop[age_bracket]) + (this_pop[age_bracket] * days_so_far)
-                if adjustments:
-                    adj_date_vars[age_bracket] = tran_mat.dot(adj_this_pop[age_bracket]) + (adj_this_pop[age_bracket] * days_so_far)
-                
+
+            transition_changes = next_pop - aged_pop
+            post_transition_pop = transition_changes.copy()
+            for age_bracket in next_pop.index.get_level_values('age_bin').unique():
+                T = precalced_transition_matrices[step_days][age_bracket]
+
+                next_pop[age_bracket] += entrant_rates[age_bracket] * step_days
+
+            entrant_changes = next_pop - post_transition_pop
+
             future_pop.loc[date] = next_pop
             var_df.loc[date] = date_vars
             if adjustments:
                 adjusted_future_pop.loc[date] = adj_next_pop
                 adj_var_df.loc[date] = adj_date_vars
 
+            A_DF.loc[date] = ageing_changes
+            E_DF.loc[date] = entrant_changes
+            T_DF.loc[date] = transition_changes
 
-        self.variances = var_df # to be removed
+        self.A_DF = A_DF
+        self.E_DF = E_DF
+        self.T_DF = T_DF
+
 
         self.future_pop = future_pop  # now we can convert these to csv/whatever and send to the frontend
         self.upper_pop, self.lower_pop = deviation_bounds(future_pop, var_df)
@@ -253,20 +256,20 @@ class Model:
 
         print('>>> POPS',
         'historic_pop',
-        self.historic_pop.to_json(),
+        self.historic_pop.to_csv(),
         'future pop',
-        self.future_pop.to_json(),
+        self.future_pop.to_csv(),
         'init pop',
-        self.initial_pop.to_json(), sep='\n')
+        self.initial_pop.to_csv(), sep='\n')
 
         print('>>> MODEL SPEC',
             'ageing',
             self.age_out_ratios,
             'one day probs',
-            *[f'{ab}:\n {T.to_json()}\n\n' for ab, T in self.daily_probs.items()],
+            *[f'{ab}:\n {T.to_csv()}\n\n' for ab, T in self.daily_probs.items()],
             'max step probs',
             f'(biggest step: {max(self.step_probs)})',
-            *[f'{ab}:\n {T.to_json()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
+            *[f'{ab}:\n {T.to_csv()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
 
             'daily entrants',
             self.entrant_rates,
@@ -274,6 +277,14 @@ class Model:
             '_default_propotions',
             self.default_proportions, sep='\n'
         )
+
+        print('>>> MOVEMENTS')
+        print('ageing')
+        print(self.A_DF.to_csv())
+        print('entrants')
+        print(self.E_DF.to_csv())
+        print('transitions')
+        print(self.T_DF.to_csv())
 
 
     @property
