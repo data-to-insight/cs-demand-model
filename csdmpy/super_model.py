@@ -82,6 +82,7 @@ def get_daily_pops_new_way(df, start=None, end=None, bin_defs=None):
 
 def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
     #df['DEC'] = pd.DateOffset(days=1)
+    print(pops.index.min(), pops.index.max())
     transitions = (df
                    .groupby(['placement_type', 'placement_type_after', 'age_bin', 'DEC'])
                    .size()
@@ -92,7 +93,7 @@ def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
                   # .stack('placement_type_after')
                    # .reorder_levels(['DEC','placement_type_after',  ])
                    )
-
+    print(transitions)
     popal, transal = pops.align(transitions)
 
     #print(born_slippy.any(axis=1))
@@ -162,31 +163,28 @@ def calculate_timestep_transition_matrices(ts_info, daily_t_probs):
 
 def apply_ageing(pops, ageing_dict):
     #print('POPS\n* * *  * * \n', pops)
-    pops=pops.copy()
+    aged_pops = pops.copy()
     #print(ageing_dict)
     age_bin_list = list(bin_defs.keys())
-    for ab in pops.index.get_level_values('age_bin'):
-        #print(' ???\n', pops[ab])
-        aged_out = pops.xs(ab, level='age_bin', drop_level=False) * ageing_dict[ab]
-        #print('ageout\n',aged_out)
-        pops[ab] = pops.xs(ab, level='age_bin', drop_level=False) - aged_out
+    for ab in pops.index.get_level_values('age_bin').unique():
+        print(ab)
+        print('tryna age these kids:\n', pops[ab].to_string())
 
-        #print('POPS (22) \n* * *  * * \n', pops)
+        aged_out = pops.xs(ab, level='age_bin', drop_level=False) * ageing_dict[ab]
+        print('ageout:\n', aged_out)
+
+        aged_pops[ab] = pops.xs(ab, level='age_bin', drop_level=False) - aged_out
+        print('post-ageing:\n',  aged_pops[ab])
 
         try:
             next_ab = age_bin_list[age_bin_list.index(ab) + 1]
         except IndexError:
+            print(f'no age bracket above {ab} - {aged_out.sum()} out in the world')
             continue
         mi = pd.MultiIndex.from_product([(next_ab, ), pops[ab].index], names=['age_bin', 'placement_type'])
-        #print(mi)
-        #print('HEY!!!', pops[mi].droplevel(0))
-        #print('YA!!!!', aged_out[ab])
-        #print(pops)
-        pops[mi] = pops[mi].values + aged_out[ab].values # is this safe?
-        #print('POPS [333] \n* * *  * * \n', pops)
-
-        #print(ab + ': ' + aged_out.to_string())
-    return pops
+        aged_pops[mi] = pops[mi].values + aged_out[ab].values # is this safe?
+        print(aged_pops)
+    return aged_pops
 
 
 def step_to_days(step_size):
@@ -206,12 +204,14 @@ def step_to_days(step_size):
 
 def ageing_probs_per_bracket(bin_defs, step_size):
     ageing_ratios = {}
+    print(f'calculating age-up ratios with step: {step_size}, (days:{step_to_days(step_size)})')
     for age_bin in bin_defs:
         bin_min, bin_max = split_age_bin(age_bin)
         bin_width_days = (bin_max - bin_min) * 365
         step_size_days = step_to_days(step_size)
         aged_out = step_size_days / bin_width_days
         ageing_ratios[age_bin] = aged_out
+        print(f'({age_bin}) width: {bin_width_days}, ratio: {aged_out}')
     return ageing_ratios
 
 

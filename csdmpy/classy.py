@@ -18,7 +18,7 @@ class ModelParams:
     reference_end: date
     history_end: date
     prediction_end: date
-    step_size: int = 4
+    step_size: str = '1d'
     bin_defs: Mapping[str, Any] = field(default_factory=lambda: age_brackets)
 
 
@@ -60,7 +60,7 @@ class Model:
         self.ref_end = model_params.reference_end
         self.end_date = model_params.history_end
         self.horizon_date = model_params.prediction_end
-        self.step_size = f'{model_params.step_size}m'
+        self.step_size =  model_params.step_size #f'{model_params.step_size}m'
         self.bin_defs = model_params.bin_defs
 
         self.adjustments = adjustments
@@ -83,9 +83,9 @@ class Model:
         print('>>> FUTURE TIMESTAMPS:\n')
         print(', '.join(str(i) for i in future_pop.index))
         # - - - - - - - -- -  -- - - - -  - -  -  - - -
+        #historic_pop.loc[historic_pop.index.max(), :] = 100
 
         initial_pop = historic_pop.loc[historic_pop.index.max()].copy().astype(float)
-
         self.ts_info = ts_info
         self.historic_pop = historic_pop
         self.initial_pop = initial_pop
@@ -184,29 +184,27 @@ class Model:
                 adj_prev_pop = adj_next_pop.copy()
                 adj_aged_pop = apply_ageing(adj_prev_pop, age_out_ratios)
             print('Moving children around...')
+
+            next_pop.loc[:, :] = 0
             for age_bracket in next_pop.index.get_level_values('age_bin').unique():
                 T = precalced_transition_matrices[step_days][age_bracket]
 
-                next_pop[age_bracket] = T.dot(aged_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
+                next_pop[age_bracket] = T.dot(aged_pop[age_bracket])
 
                 if adjustments:
                     adj_next_pop[age_bracket] = T.dot(adj_next_pop[age_bracket]) + entrant_rates[age_bracket] * step_days
                     adj_next_pop = apply_adjustments(adj_next_pop.copy(), adjustments, step_days)
 
             transition_changes = next_pop - aged_pop
-            post_transition_pop = transition_changes.copy()
+            post_transition_pop = next_pop.copy()
             for age_bracket in next_pop.index.get_level_values('age_bin').unique():
-                T = precalced_transition_matrices[step_days][age_bracket]
-
                 next_pop[age_bracket] += entrant_rates[age_bracket] * step_days
 
             entrant_changes = next_pop - post_transition_pop
 
             future_pop.loc[date] = next_pop
-            var_df.loc[date] = date_vars
             if adjustments:
                 adjusted_future_pop.loc[date] = adj_next_pop
-                adj_var_df.loc[date] = adj_date_vars
 
             A_DF.loc[date] = ageing_changes
             E_DF.loc[date] = entrant_changes
@@ -256,20 +254,20 @@ class Model:
 
         print('>>> POPS',
         'historic_pop',
-        self.historic_pop.to_csv(),
+        self.historic_pop.to_string(),
         'future pop',
-        self.future_pop.to_csv(),
+        self.future_pop.to_string(),
         'init pop',
-        self.initial_pop.to_csv(), sep='\n')
+        self.initial_pop.to_string(), sep='\n')
 
         print('>>> MODEL SPEC',
             'ageing',
             self.age_out_ratios,
             'one day probs',
-            *[f'{ab}:\n {T.to_csv()}\n\n' for ab, T in self.daily_probs.items()],
+            *[f'{ab}:\n {T.to_string()}\n\n' for ab, T in self.daily_probs.items()],
             'max step probs',
             f'(biggest step: {max(self.step_probs)})',
-            *[f'{ab}:\n {T.to_csv()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
+            *[f'{ab}:\n {T.to_string()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
 
             'daily entrants',
             self.entrant_rates,
@@ -279,12 +277,12 @@ class Model:
         )
 
         print('>>> MOVEMENTS')
-        print('ageing')
-        print(self.A_DF.to_csv())
-        print('entrants')
-        print(self.E_DF.to_csv())
-        print('transitions')
-        print(self.T_DF.to_csv())
+        print('\n### ageing')
+        print(self.A_DF.to_string())
+        print('\n### entrants')
+        print(self.E_DF.to_string())
+        print('\n### transitions')
+        print(self.T_DF.to_string())
 
 
     @property

@@ -44,12 +44,12 @@ def proportion_split(df, all_proportions):
 
     Supported is intentionally left out of proportions to demonstrate what happens when a column name is missing.
     """
-
+    tol = 0.001
     # make sure they sum to 1.0
     for category, ratios in all_proportions.items():
-        if sum((float(i) for i in ratios.values())) != 1.0:
+        if abs(sum((float(i) for i in ratios.values())) - 1.0) > tol:
             subcategories = tuple(ratios.keys())
-            warn(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%')
+            warn(f'Proportions provided for subcategories {subcategories} of {category} do not sum to 100%: {list(ratios.values())}')
     # copy over the date values contained in the index.
     df_made = pd.DataFrame(index=df.index)
     # create array structure that will be used to form a MultiIndex for the DataFrame columns.

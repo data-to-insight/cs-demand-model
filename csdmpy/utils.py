@@ -7,6 +7,41 @@ from warnings import warn
 
 test_903_dir = Path(__file__).parent / 'tests' / 'fake903_5yrs'
 
+def ezsesh():
+    from csdmpy.classy import Model, ModelParams
+    from csdmpy.utils import ezfiles
+    from csdmpy.config import age_brackets as bin_defs
+    import pandas as pd
+    import matplotlib.pyplot as pp
+
+    from csdmpy.api import ApiSession
+    from csdmpy.config import cost_params_map
+
+    step_size = '4'
+
+    hist_start, ref_start, ref_end, hist_end, pred_end = pd.to_datetime(
+        ['2015-01-01', '2016-06-01', '2017-06-01', '2019-01-01', '2021-01-01'])
+
+    model_params = {}
+    model_params['history_start'] = hist_start
+    model_params['reference_start'] = ref_start
+    model_params['reference_end'] = ref_end
+    model_params['history_end'] = hist_end
+    model_params['prediction_end'] = pred_end
+    model_params['step_size'] = step_size
+    model_params['bin_defs'] = bin_defs
+    model_params = ModelParams(**model_params)
+
+    costs = {k: '100' for k in cost_params_map.keys()}
+    props = {k: '0.3' for k in cost_params_map.keys()}
+
+    session = ApiSession(ezfiles())
+
+    session.calculate_model(model_params, [])
+
+    session.calculate_costs(costs, props, None)
+    return session
+
 def ezfiles():
     year_list = [2017, 2018, 2019, 2020, 2021]
     tables_needed = ('header', 'episodes')

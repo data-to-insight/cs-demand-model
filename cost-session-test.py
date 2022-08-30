@@ -7,10 +7,10 @@ import matplotlib.pyplot as pp
 from csdmpy.api import ApiSession
 from csdmpy.config import cost_params_map
 
-step_size = '4'
+step_size = '1d'
 
 hist_start, ref_start, ref_end, hist_end, pred_end = pd.to_datetime(
-    ['2015-01-01', '2016-06-01', '2017-06-01', '2019-01-01', '2025-01-01'])
+    ['2015-01-01', '2019-07-01', '2020-01-01', '2020-01-01', '2021-07-01'])
 
 model_params = {}
 model_params['history_start'] = hist_start
@@ -33,6 +33,10 @@ session.calculate_costs(costs, props, None)
 print('----------------')
 session.model.print_everything()
 
+pd.concat([session.model.historic_pop, session.model.future_pop], axis=0).plot()
+pp.axvline(hist_end, alpha=0.4)
+pp.axvspan(ref_start, ref_end, alpha=0.1)
+pp.show()
 
 '''print('POPS =================')
 print(session.model.future_pop.to_string())
