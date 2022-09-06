@@ -1,5 +1,6 @@
 import pandas as pd
 
+from .classy import ModelParams
 from .utils import truncate, get_ongoing, make_date_index, to_datetime, split_age_bin
 from csdmpy.config import age_brackets as bin_defs
 from csdmpy.config import NOT_IN_CARE, all_zero_props, next_brackets
@@ -246,19 +247,14 @@ def daily_entrants_per_bracket(df, bin_defs, start_date, end_date):
     return entrants_mat
 
 
-def make_populations_ts(df, bin_defs, start_date, end_date, step_size='3m', cat_col='placement_type', cat_list=None):
-    if cat_list:
-        df = df[df[cat_col].isin(cat_list)]
+def make_populations_ts(df, model_params: ModelParams, cat_col='placement_type'):
     # make time series of historical placement
-    start_date, end_date = to_datetime([start_date, end_date])
-    df = truncate(df, start_date, end_date, s_col="DECOM", e_col="DEC")
+    df = truncate(df, model_params.history_start, model_params.history_end, s_col="DECOM", e_col="DEC")
 
-    ts_info = make_date_index(start_date, end_date, step_size, align_end=True)
+    ts_info = make_date_index(model_params.history_start, model_params.history_end, model_params.step_size, align_end=True)
+
     pops_ts = pd.Series(data=ts_info.index, index=ts_info.index)
-
-    pops_ts = pops_ts.apply(lambda date: (get_ongoing(df, date)
-                                          .groupby(['age_bin', cat_col])
-                                          .size()))
+    pops_ts = pops_ts.apply(lambda date: get_ongoing(df, date).groupby(['age_bin', cat_col]).size())
 
     multi_ind = pd.MultiIndex.from_tuples(
         [

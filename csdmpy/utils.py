@@ -42,34 +42,6 @@ def ezsesh():
     session.calculate_costs(costs, props, None)
     return session
 
-def ezfiles():
-    year_list = [2017, 2018, 2019, 2020, 2021]
-    tables_needed = ('header', 'episodes')
-    files_list = []
-    for year in year_list:
-        year_dir = test_903_dir / str(year)
-        label = str(max(year_list) - year) + "_ago"
-        for table_name in tables_needed:
-            table_path = year_dir / (table_name + '.csv')
-            file_bytes = table_path.read_bytes()
-            files_list.append({
-                'description': label,
-                'year': f'{year - 1}/{year % 1000}',
-                'name': table_path.name,
-                'path': str(table_path.resolve()),
-                'last_modified': int(table_path.stat().st_mtime),
-                'size': len(file_bytes),
-                'type': 'text/csv',
-                'fileText': file_bytes,
-            })
-    return files_list
-
-def split_age_bin(age_bin):
-    lower, upper = age_bin.split(' to ')
-    lower = int(lower)
-    upper = int(upper)
-    return lower, upper
-
 
 def to_datetime(dates, date_formats=None):
     if not date_formats:
@@ -91,31 +63,7 @@ def to_datetime(dates, date_formats=None):
     return dates
 
 
-def make_date_index(start_date, end_date, step_size, align_end=False):
-    start_date, end_date = to_datetime([start_date, end_date])
-    date_units = {'d': 'days',
-                  'w': 'weeks',
-                  'm': 'months',
-                  'y': 'years'}
-    count, unit = step_size[:-1], step_size[-1]
-    count = int(count)
-    unit = date_units[unit.lower()]
-    step_off = pd.DateOffset(**{unit: count})
 
-    ts_info = pd.DataFrame(columns=['step_days'])
-
-    if align_end:
-        date = end_date
-        while date >= start_date:
-            ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
-            date -= step_off
-    else:
-        date = start_date
-        while date <= end_date:
-            ts_info.loc[date, 'step_days'] = ((date + step_off) - date).days
-            date += step_off
-
-    return ts_info.sort_index()
 
 
 def truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC', close=False, clip=False):

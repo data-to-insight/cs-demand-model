@@ -1,6 +1,8 @@
 from enum import Enum, EnumMeta
 from typing import Iterable, Tuple, Optional
 
+from pandas.tseries import offsets
+
 
 class Constants:
     YEAR_IN_DAYS = 365.24
@@ -109,3 +111,23 @@ class AgeBracket(Enum):
             if bracket.start <= age < bracket.end:
                 return bracket
         return None
+
+
+class IntervalUnit(Enum):
+
+    DAY = 'days', offsets.Day()
+    WEEK = 'weeks', offsets.Week()
+    MONTH = 'months', offsets.MonthEnd()
+    YEAR = 'years', offsets.YearEnd()
+
+    def __init__(self, label, offset):
+        self.__label = label
+        self.__offset = offset
+
+    @property
+    def label(self) -> str:
+        return self.__label
+
+    @property
+    def offset(self):
+        return self.__offset

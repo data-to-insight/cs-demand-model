@@ -25,15 +25,15 @@ class ModelParams:
 class Model:
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
-        self.set_up_time_series()
+        self.set_up_time_series(model_params)
 
         self.measure_system()
 
         self.predict()
 
-    def set_up_time_series(self):
+    def set_up_time_series(self, model_params):
 
-        historic_pop = make_populations_ts(df, bin_defs, start_date, end_date, step_size).sort_index()
+        historic_pop = make_populations_ts(df, model_params).sort_index()
 
         ts_info = make_date_index(end_date, horizon_date, step_size, align_end=False).iloc[1:]
 
