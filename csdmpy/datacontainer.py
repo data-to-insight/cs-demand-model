@@ -218,8 +218,8 @@ class DemandModellingDataContainer:
         """
         combined.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
         offset_mask = (combined['CHILD'] == combined['CHILD'].shift(-offset)) & (combined['DEC'] != combined['DECOM'].shift(-offset))
-        combined.loc[offset_mask, new_column_name] = Constants.NOT_IN_CARE
-        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(1).fillna(Constants.NOT_IN_CARE)
+        combined.loc[offset_mask, new_column_name] = PlacementType.NOT_IN_CARE.name
+        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(1).fillna(PlacementType.NOT_IN_CARE.name)
         return combined
 
     @staticmethod
@@ -229,7 +229,7 @@ class DemandModellingDataContainer:
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined['placement_type'] = combined['PLACE'].apply(PlacementType.category_by_type)
-        combined['placement_type_before'] = combined['PLACE_BEFORE'].apply(PlacementType.category_by_type)
-        combined['placement_type_after'] = combined['PLACE_AFTER'].apply(PlacementType.category_by_type)
+        combined['placement_type'] = combined['PLACE'].apply(lambda x: PlacementType[x].value.value)
+        combined['placement_type_before'] = combined['PLACE_BEFORE'].apply(lambda x: PlacementType[x].value.value)
+        combined['placement_type_after'] = combined['PLACE_AFTER'].apply(lambda x: PlacementType[x].value.value)
         return combined

@@ -1,44 +1,70 @@
-from enum import Enum
-from typing import Iterable, Tuple, Optional, Union
+from enum import Enum, EnumMeta
+from typing import Iterable, Tuple, Optional
 
 
 class Constants:
     YEAR_IN_DAYS = 365.24
-    NOT_IN_CARE = 'Not in care'
 
 
-class PlacementCategory(Enum):
+class EnumWithOther(EnumMeta):
+    """
+    Creates a metaclass so that this enum[<name>] will ALWAYS return a type, even if the <name> is not defined.
+
+    Any unknown values will return OTHER. OTHER must be defined in the enum or a KeyError will be raised.
+    """
+    def __getitem__(cls, name):
+        try:
+            return super().__getitem__(name)
+        except KeyError:
+            try:
+                return cls.OTHER
+            except AttributeError:
+                raise KeyError(f"Unknown value {name} and no OTHER defined in {cls.__name__}")
+
+
+class PlacementCategory(Enum, metaclass=EnumWithOther):
     FOSTER = "Foster"
     RESIDENTIAL = "Resi"
     SUPPORTED = "Supported"
     OTHER = "Other"
+    NOT_IN_CARE = "Not in care"
 
 
-class PlacementType(Enum):
-    U1 = PlacementCategory.FOSTER
-    U2 = PlacementCategory.FOSTER
-    U3 = PlacementCategory.FOSTER
-    U4 = PlacementCategory.FOSTER
-    U5 = PlacementCategory.FOSTER
-    U6 = PlacementCategory.FOSTER
+class PlacementSubCategory(Enum, metaclass=EnumWithOther):
+    FOSTER_FRIEND_RELATIVE = PlacementCategory.FOSTER
+    FOSTER_IN_HOUSE = PlacementCategory.FOSTER
+    FOSTER_IFA = PlacementCategory.FOSTER
+    RESIDENTIAL_IN_HOUSE = PlacementCategory.RESIDENTIAL
+    RESIDENTIAL_EXTERNAL = PlacementCategory.RESIDENTIAL
+    SUPPORTED = PlacementCategory.SUPPORTED
+    OTHER_SECURE_HOME = PlacementCategory.OTHER
+    OTHER_PLACED_WITH_FAMILY = PlacementCategory.OTHER
+    OTHER = PlacementCategory.OTHER
+    NOT_IN_CARE = PlacementCategory.NOT_IN_CARE
 
-    K2 = PlacementCategory.RESIDENTIAL
-    R1 = PlacementCategory.RESIDENTIAL
 
-    H5 = PlacementCategory.SUPPORTED
-    P2 = PlacementCategory.SUPPORTED
+class PlacementType(Enum, metaclass=EnumWithOther):
+    H5 = PlacementSubCategory.SUPPORTED
 
-    @classmethod
-    def category_by_type(cls, placement_type: Union["PlacementType", str]) -> PlacementCategory:
-        try:
-            return placement_type.type
-        except AttributeError:
-            pass
+    K1 = PlacementSubCategory.OTHER_SECURE_HOME
+    K2 = PlacementSubCategory.RESIDENTIAL_EXTERNAL
 
-        try:
-            return cls[placement_type].value
-        except KeyError:
-            return PlacementCategory.OTHER
+    P1 = PlacementSubCategory.OTHER_PLACED_WITH_FAMILY
+    P2 = PlacementSubCategory.SUPPORTED
+
+    R1 = PlacementSubCategory.RESIDENTIAL_IN_HOUSE
+    R3 = PlacementSubCategory.OTHER_PLACED_WITH_FAMILY
+
+    U1 = PlacementSubCategory.FOSTER_FRIEND_RELATIVE
+    U2 = PlacementSubCategory.FOSTER_FRIEND_RELATIVE
+    U3 = PlacementSubCategory.FOSTER_FRIEND_RELATIVE
+    U4 = PlacementSubCategory.FOSTER_IN_HOUSE
+    U5 = PlacementSubCategory.FOSTER_IN_HOUSE
+    U6 = PlacementSubCategory.FOSTER_IFA
+
+    OTHER = PlacementSubCategory.OTHER
+
+    NOT_IN_CARE = PlacementSubCategory.NOT_IN_CARE
 
 
 class AgeBracket(Enum):
