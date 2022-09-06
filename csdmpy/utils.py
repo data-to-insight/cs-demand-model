@@ -5,7 +5,7 @@ from .config import ACCEPTED_DATE_FORMATS, cost_params_map
 import os
 from warnings import warn
 
-test_903_dir = Path(__file__).parent / 'tests' / 'fake903_5yrs'
+test_903_dir = Path(__file__).parent / 'xxx' / 'fake903_5yrs'
 
 def ezsesh():
     from csdmpy.classy import Model, ModelParams

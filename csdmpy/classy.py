@@ -23,126 +23,47 @@ class ModelParams:
 
 
 class Model:
-    df = None
-    # model_params
-    start_date = None
-    ref_start = None
-    ref_end = None
-    end_date = None
-    horizon_date = None
-    step_size = None
-    bin_defs = None
-
-    # stuff that will be calculated
-    ts_info = None
-    historic_pop = None
-    future_pop = None
-    adjusted_future_pop = None
-    initial_pop = None
-    
-    age_out_ratios = None
-    daily_probs = None
-    step_probs = None
-    entrant_rates = None
-    past_costs = None
-    future_costs = None
-    adjusted_future_costs = None
-    _default_proportions = None
 
     def __init__(self, df=None, model_params: ModelParams = None, adjustments=None):
-        print('>> * >> * >> INITIALISING MODEL INISTANCE')
-        print('>>> MODEL PARAMS:\n', model_params)
-        print('>>> ADJUSTMENTS:\n', adjustments)
-        self.df = df
-
-        self.start_date = model_params.history_start
-        self.ref_start = model_params.reference_start
-        self.ref_end = model_params.reference_end
-        self.end_date = model_params.history_end
-        self.horizon_date = model_params.prediction_end
-        self.step_size =  model_params.step_size #f'{model_params.step_size}m'
-        self.bin_defs = model_params.bin_defs
-
-        self.adjustments = adjustments
-
         self.set_up_time_series()
+
         self.measure_system()
+
         self.predict()
 
     def set_up_time_series(self):
-        df, bin_defs, start_date, end_date, horizon_date, step_size \
-            = self.df, self.bin_defs, self.start_date, self.end_date, self.horizon_date, self.step_size
 
         historic_pop = make_populations_ts(df, bin_defs, start_date, end_date, step_size).sort_index()
+
         ts_info = make_date_index(end_date, horizon_date, step_size, align_end=False).iloc[1:]
+
         future_pop = pd.DataFrame(columns=historic_pop.columns, index=ts_info.index)
-        print('>> * >> * >> SETTING UP TIME SERIES')
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
-        print('>>> HISTORIC POPS:\n')
-        print(historic_pop.to_string())
-        print('>>> FUTURE TIMESTAMPS:\n')
-        print(', '.join(str(i) for i in future_pop.index))
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
-        #historic_pop.loc[historic_pop.index.max(), :] = 100
+
 
         initial_pop = historic_pop.loc[historic_pop.index.max()].copy().astype(float)
-        self.ts_info = ts_info
-        self.historic_pop = historic_pop
-        self.initial_pop = initial_pop
-        self.future_pop = future_pop
 
         if self.adjustments:
-            self.adjusted_future_pop = future_pop.copy()
+            self.adjusted_future_pop = future_pop.copy() # Here we make a copy of the future_pop dataframe if we have adjustments?
         else:
             self.adjusted_future_pop = None
 
     def measure_system(self):
-
-        print('>> * >> * >> TAKNG MEASUREMENTS')
-        df, bin_defs, start_date, end_date, ts_info = self.df, self.bin_defs, self.ref_start, self.ref_end, self.ts_info
-        step_size = self.step_size
-
-        print('>>> MEASURING PROPORTIONS')
         self._default_proportions = get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
 
-        print('>>> CALCULATING AGEING PROPORTIONS')
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
-        print(age_out_ratios)
 
-        print('>>> MEASURING DAILY TRANSITION PROBS')
         pops = get_daily_pops_new_way(df, start_date, end_date)
-        #t_probs = transition_probs_per_bracket(df, bin_defs, start_date, end_date)
+
         t_probs = get_daily_transitions_new_way(df, pops)
-        self.t_probs = t_probs
-        print('T matrices (coming soon)')
 
-        for bracket, t_mat in t_probs.items():
-            print(str(bracket) + ':', t_mat, sep='\n')
-
-        print('>>> CALCULATING STEP TRANSITON MATRICES')
         precalced_transition_matrices = calculate_timestep_transition_matrices(ts_info, t_probs)
         max_step_t_mats = precalced_transition_matrices[max(precalced_transition_matrices)]
 
-        #print((f'{ab}:\n {T.to_json()}\n' for ab, T in max_step_t_mats.items()), sep='\n')
-
-        print('>>> CALCULATING ENTRY RATES')
-
         entrance = daily_entrants_per_bracket(df, bin_defs, start_date, end_date)
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
-        print(f'[*]] * ****%%%(( ENTRANTS )) \n')
-        for bracket, entrants_df in entrance.items():
-            print(str(bracket) + ':', entrants_df, sep='\n')
-        # - - - - - - - -- -  -- - - - -  - -  -  - - -
 
-        self.daily_probs = t_probs
-        self.age_out_ratios = age_out_ratios
-        self.entrant_rates = entrance
-        self.step_probs = precalced_transition_matrices
+
 
     def predict(self):
-        df, ts_info, future_pop = self.df, self.ts_info, self.future_pop
-        adjustments = self.adjustments
-        
         if adjustments:
             adjusted_future_pop = self.adjusted_future_pop
         
@@ -232,57 +153,8 @@ class Model:
         past_cost_params = cost_params.copy()
         past_cost_params['inflation'] = None
         past_costs = calculate_costs(self.historic_pop, **cost_params)
-        self.past_costs = past_costs
-        self.future_costs = future_costs
         if adjustments:
             self.adjusted_future_costs = adjusted_future_costs
-
-    def print_everything(self):
-
-        # model_params
-        print('>>> PARAMS',
-        'start_date:', self.start_date,
-        'ref_start:', self.ref_start,
-        'ref_end:', self.ref_end,
-        'end_date:', self.end_date,
-        'horizon_date:', self.horizon_date,
-        'step_size:', self.step_size, sep='\n')
-
-        # stuff that will be calculated
-        self.ts_info,
-
-
-        print('>>> POPS',
-        'historic_pop',
-        self.historic_pop.to_string(),
-        'future pop',
-        self.future_pop.to_string(),
-        'init pop',
-        self.initial_pop.to_string(), sep='\n')
-
-        print('>>> MODEL SPEC',
-            'ageing',
-            self.age_out_ratios,
-            'one day probs',
-            *[f'{ab}:\n {T.to_string()}\n\n' for ab, T in self.daily_probs.items()],
-            'max step probs',
-            f'(biggest step: {max(self.step_probs)})',
-            *[f'{ab}:\n {T.to_string()}\n\n' for ab, T in self.step_probs[max(self.step_probs)].items()],
-
-            'daily entrants',
-            self.entrant_rates,
-
-            '_default_propotions',
-            self.default_proportions, sep='\n'
-        )
-
-        print('>>> MOVEMENTS')
-        print('\n### ageing')
-        print(self.A_DF.to_string())
-        print('\n### entrants')
-        print(self.E_DF.to_string())
-        print('\n### transitions')
-        print(self.T_DF.to_string())
 
 
     @property
