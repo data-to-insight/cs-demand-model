@@ -1,3 +1,3 @@
-from .__api import DataFile, DataStore, Metadata
+from .__api import DataFile, DataStore, Metadata, TableType
 
-__all__ = ["DataFile", "DataStore", "Metadata"]
+__all__ = ["DataFile", "DataStore", "Metadata", "TableType"]

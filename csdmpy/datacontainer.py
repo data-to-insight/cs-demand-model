@@ -2,13 +2,14 @@ import csv
 import dataclasses
 import io
 import logging
+from functools import lru_cache
 from typing import Any, List, Optional
 
 import pandas as pd
 
+from csdmpy.constants import Constants, AgeBracket, PlacementType, PlacementCategory
 from csdmpy.data.ssda903 import SSDA903TableType
-from csdmpy.datastore import DataFile, DataStore
-from csdmpy.datastore.__api import TableType
+from csdmpy.datastore import DataFile, DataStore, TableType
 
 log = logging.getLogger(__name__)
 
@@ -110,9 +111,6 @@ class DemandModellingDataContainer:
             episodes, how="inner", on="CHILD", suffixes=("_header", "_episodes")
         )
 
-        merged["age"] = (merged["DECOM"] - merged["DOB"]).dt.days / 365.24
-        merged["end_age"] = (merged["DEC"] - merged["DOB"]).dt.days / 365.24
-
         return merged
 
     def get_combined_data(self, combined: pd.DataFrame = None) -> pd.DataFrame:
@@ -131,6 +129,8 @@ class DemandModellingDataContainer:
                     for year in range(self.first_year, self.last_year + 1)
                 ]
             )
+        else:
+            combined = combined.copy()
 
         # Just do some basic data validation checks
         assert not combined["CHILD"].isna().any()
@@ -163,4 +163,73 @@ class DemandModellingDataContainer:
         change_ix = combined["DEC"].isna() | combined["DEC"].gt(decom_next)
         combined.loc[change_ix, "DEC"] = decom_next[change_ix]
 
+        return combined
+
+    def get_enriched_view(self, combined: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Adds several additional columns to the combined view to support the model calculations.
+
+        * age - the age of the child at the start of the episode
+        * age_end - the age of the child at the end of the episode
+
+        """
+
+        if not combined:
+            combined = self.get_combined_data()
+        else:
+            combined = combined.copy()
+
+        combined = self._add_ages(combined)
+        combined = self._add_age_bins(combined)
+        combined = self._add_related_placement_type(combined, 1, "PLACE_AFTER")
+        combined = self._add_related_placement_type(combined, -1, "PLACE_BEFORE")
+        combined = self._add_placement_categories(combined)
+        return combined
+
+    @staticmethod
+    def _add_ages(combined: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculates the age of the child at the start and end of the episode and adds them as columns
+
+        WARNING: This method modifies the dataframe in place.
+        """
+
+        combined["age"] = (combined["DECOM"] - combined["DOB"]).dt.days / Constants.YEAR_IN_DAYS
+        combined["end_age"] = (combined["DEC"] - combined["DOB"]).dt.days / Constants.YEAR_IN_DAYS
+        return combined
+
+    @staticmethod
+    def _add_age_bins(combined: pd.DataFrame) -> pd.DataFrame:
+        """
+        Adds age bins for the child at the start and end of the episode and adds them as columns
+
+        WARNING: This method modifies the dataframe in place.
+        """
+        combined['age_bin'] = combined['age'].apply(AgeBracket.bracket_for)
+        combined['end_age_bin'] = combined['end_age'].apply(AgeBracket.bracket_for)
+        return combined
+
+    @staticmethod
+    def _add_related_placement_type(combined: pd.DataFrame, offset: int, new_column_name: str) -> pd.DataFrame:
+        """
+        Adds the related placement type, usually 1 for after, or -1 for preceeding.
+
+        WARNING: This method modifies the dataframe in place.
+        """
+        combined.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
+        offset_mask = (combined['CHILD'] == combined['CHILD'].shift(-offset)) & (combined['DEC'] != combined['DECOM'].shift(-offset))
+        combined.loc[offset_mask, new_column_name] = Constants.NOT_IN_CARE
+        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(1).fillna(Constants.NOT_IN_CARE)
+        return combined
+
+    @staticmethod
+    def _add_placement_categories(combined: pd.DataFrame) -> pd.DataFrame:
+        """
+        Adds placement category for
+
+        WARNING: This method modifies the dataframe in place.
+        """
+        combined['placement_type'] = combined['PLACE'].apply(PlacementType.category_by_type)
+        combined['placement_type_before'] = combined['PLACE_BEFORE'].apply(PlacementType.category_by_type)
+        combined['placement_type_after'] = combined['PLACE_AFTER'].apply(PlacementType.category_by_type)
         return combined

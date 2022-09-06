@@ -1,3 +1,6 @@
+from enum import Enum
+from typing import Iterable, Tuple
+
 MAX_YEARS_OF_DATA = 5
 
 NOT_IN_CARE = 'Not in care'
@@ -11,21 +14,8 @@ table_headers = {
         'CHILD,SEX,DOB,ETHNIC,UPN,MOTHER,MC_DOB'.split(',')
 }
 
-age_brackets = {
-    '-1 to 1': ('Foster', 'Other'),
-    '1 to 5': ('Foster', 'Other'),
-    '5 to 10': ('Foster', 'Resi', 'Other'),
-    '10 to 16': ('Foster', 'Resi', 'Other'),
-    '16 to 18': ('Foster', 'Resi', 'Supported', 'Other'),
-}
 
-next_brackets = {
-    '-1 to 1': '1 to 5',
-    '1 to 5': '5 to 10',
-    '5 to 10': '10 to 16',
-    '10 to 16': '16 to 18',
-    '16 to 18': None,
-}
+
 cost_params_map = {
     'foster_friend_relative': ('Foster', 'Friend/relative'),
     'foster_in_house': ('Foster', 'in-house'),
