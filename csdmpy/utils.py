@@ -64,28 +64,6 @@ def to_datetime(dates, date_formats=None):
 
 
 
-
-
-def truncate(df, start_date, end_date, s_col='DECOM', e_col='DEC', close=False, clip=False):
-    df = df.copy()
-
-    if close:
-        # end open episodes at the end date
-        df[e_col] = df[e_col].fillna(end_date)
-
-    # only keep episodes which overlap the specified date range
-    df = df[
-        (df[s_col] <= end_date)
-        & ((df[e_col] >= start_date) | df[e_col].isna())
-    ].copy()
-
-    if clip:
-        # for episodes that do overlap, only include the days within the range
-        df[s_col] = df[s_col].clip(lower=start_date)
-        df[e_col] = df[e_col].clip(upper=end_date)
-    return df
-
-
 def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_cols=None):
     df = df[(df[s_col] <= t)
             & ((df[e_col] > t) | df[e_col].isna())].copy()
