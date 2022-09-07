@@ -63,16 +63,6 @@ def to_datetime(dates, date_formats=None):
     return dates
 
 
-
-def get_ongoing(df, t, s_col='DECOM', e_col='DEC', censor=False, retrospective_cols=None):
-    df = df[(df[s_col] <= t)
-            & ((df[e_col] > t) | df[e_col].isna())].copy()
-    if censor:
-        df.loc[(df[e_col] > t), e_col] = pd.NaT
-        if retrospective_cols:
-            df.loc[(df[e_col] > t), retrospective_cols] = pd.NA
-    return df
-
 def deviation_bounds(data, variance_values):
     """ This function adds and subtracts 1 standard deviation to calculate the uppper and lower bounds, respectively, of data provided to it.  """
 
