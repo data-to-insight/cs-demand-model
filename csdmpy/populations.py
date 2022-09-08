@@ -1,5 +1,6 @@
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from csdmpy.constants import AgeBracket
@@ -42,3 +43,84 @@ def make_populations_ts(
     populations_ts.fillna(0, inplace=True)
 
     return populations_ts
+
+
+def _group_and_count_dates(df: pd.DataFrame, column: str, name: str) -> pd.Series:
+    """
+    Group the DataFrame by the given column and count the number of rows in each group.
+    """
+    groups = df.groupby([column, "placement_type", "age_bin"]).size()
+    groups.name = name
+    groups.index.names = ["date", "placement_type", "age_bin"]
+    return groups
+
+
+def get_daily_pops_new_way(df, start_date: date, end_date: date):
+    """
+    Calculates the daily population for each age bin and placement type by
+    finding all the transitions (start or end of episode), summing to get total populations for each
+    day and then resampling to get the daily populations.
+    """
+    beginnings = _group_and_count_dates(df, "DECOM", "nof_decoms")
+    endings = _group_and_count_dates(df, "DEC", "nof_decs")
+
+    pops = pd.merge(
+        left=beginnings, right=endings, left_index=True, right_index=True, how="outer"
+    )
+    pops = pops.fillna(0).sort_values("date")
+
+    transitions = pops["nof_decoms"] - pops["nof_decs"]
+
+    total_counts = (
+        transitions.groupby(["placement_type", "age_bin"])
+        .cumsum()
+        .unstack(["age_bin", "placement_type"])
+    )
+
+    daily_counts = total_counts.resample("D").first().fillna(method="ffill")
+
+    return daily_counts.truncate(before=start_date, after=end_date).fillna(0)
+
+
+def get_daily_transitions_new_way(df, pops):
+    transitions = (
+        df.groupby(["placement_type", "placement_type_after", "age_bin", "DEC"])
+        .size()
+        .unstack(level=["age_bin", "placement_type", "placement_type_after"])
+        .truncate(before=pops.index.min(), after=pops.index.max())
+        .fillna(0)
+        .asfreq("D", fill_value=0)
+    )
+
+    popal, transal = pops.align(transitions)
+
+    transition_rates = (
+        (transal / popal.shift(1).fillna(method="bfill"))
+        .mean(axis=0)
+        .unstack(["age_bin", "placement_type"])
+        .fillna(0)
+    )
+
+    bins_in_data = transition_rates.columns.get_level_values("age_bin").unique()
+    transidict = {}
+    for ab in bin_defs:
+        valid_places = bin_defs[ab]
+        if ab in bins_in_data:
+            t_matrix = transition_rates[ab].copy()
+
+            for pt in set(valid_places) - set(t_matrix.columns):
+                t_matrix.loc[:, pt] = 0
+
+            for pt in set(valid_places) - set(t_matrix.index):
+                t_matrix.loc[pt, :] = 0
+
+            for pt in t_matrix.columns:
+                t_matrix.loc[pt, pt] = 1 - (t_matrix.loc[:, pt].drop(index=pt).sum())
+
+            t_matrix = t_matrix.loc[valid_places, valid_places]
+        else:
+            t_matrix = pd.DataFrame(
+                data=np.eye(len(valid_places)), index=valid_places, columns=valid_places
+            )
+        transidict[ab] = t_matrix
+    return transidict

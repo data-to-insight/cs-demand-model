@@ -47,92 +47,9 @@ def get_default_proportions(df, start=None, end=None,):
 
     return default_props
 
-def get_daily_pops_new_way(df, start=None, end=None, bin_defs=None):
-    if not start:
-        start = df[['DECOM', 'DEC']].min().min()
-    if not end:
-        end = df[['DECOM', 'DEC']].max().max()
-
-    endings = df.groupby(['DEC', 'placement_type', 'age_bin']).size()
-    endings.name = 'nof_decs'
-
-    beginnings = df.groupby(['DECOM', 'placement_type', 'age_bin']).size()
-    beginnings.name = 'nof_decoms'
-
-    endings.index.names = ['date', 'placement_type', 'age_bin']
-    beginnings.index.names = ['date', 'placement_type', 'age_bin']
-
-    pops = pd.merge(left=beginnings, right=endings,
-                    left_index=True, right_index=True, how='outer')
-
-    pops = (pops
-            .fillna(0)
-            .sort_values('date'))
-
-    pops = ((pops['nof_decoms'] - pops['nof_decs'])
-            .groupby(['placement_type', 'age_bin'])
-            .cumsum()
-            .unstack(['age_bin', 'placement_type'])
-            .resample('D')
-            .fillna(method='ffill')  # this one does nothing? as freq something
-            .fillna(method='ffill')
-            .truncate(before=start, after=end)
-            .fillna(0))
-    return pops
 
 
-def get_daily_transitions_new_way(df, pops, bin_defs=bin_defs):
-    #df['DEC'] = pd.DateOffset(days=1)
-    print(pops.index.min(), pops.index.max())
-    transitions = (df
-                   .groupby(['placement_type', 'placement_type_after', 'age_bin', 'DEC'])
-                   .size()
-                   .unstack(level=['age_bin', 'placement_type', 'placement_type_after'])
-                   .truncate(before=pops.index.min(), after=pops.index.max())
-                   .fillna(0)
-                   .asfreq('D', fill_value=0)
-                  # .stack('placement_type_after')
-                   # .reorder_levels(['DEC','placement_type_after',  ])
-                   )
-    print(transitions)
-    popal, transal = pops.align(transitions)
 
-    #print(born_slippy.any(axis=1))
-
-    transition_rates = ((transal / popal.shift(1).fillna(method='bfill'))
-                        .mean(axis=0)
-                        .unstack(['age_bin', 'placement_type'])
-                        .fillna(0))
-
-    bins_in_data = transition_rates.columns.get_level_values('age_bin').unique()
-    transidict = {}
-    for ab in bin_defs:
-        valid_places = bin_defs[ab]
-        if ab in bins_in_data:
-            t_matrix = transition_rates[ab].copy()
-
-            for pt in set(valid_places) - set(t_matrix.columns):
-                t_matrix.loc[:, pt] = 0
-
-            for pt in set(valid_places) - set(t_matrix.index):
-                t_matrix.loc[pt, :] = 0
-
-            for pt in t_matrix.columns:
-                #print('-------->', pt, '<---')
-                t_matrix.loc[pt, pt] = 1 - (t_matrix
-                                            .loc[:, pt]
-                                            .drop(index=pt)
-                                            .sum())
-            #print('))))))) valid places', valid_places)
-            #print('))))))) t_mat', t_matrix)
-
-            t_matrix = t_matrix.loc[valid_places, valid_places]
-        else:
-            t_matrix = pd.DataFrame(data=np.eye(len(valid_places)),
-                                    index=valid_places,
-                                    columns=valid_places)
-        transidict[ab] = t_matrix
-    return transidict
 
 
 def calculate_timestep_transition_matrices(ts_info, daily_t_probs):

@@ -48,8 +48,6 @@ class Model:
             self.adjusted_future_pop = None
 
     def measure_system(self):
-        self._default_proportions = get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
-
         age_out_ratios = ageing_probs_per_bracket(bin_defs, step_size)
 
         pops = get_daily_pops_new_way(df, start_date, end_date)
@@ -160,7 +158,7 @@ class Model:
     @property
     def default_proportions(self):
         # map it into flat structure expected by frontend.
-        return self._default_proportions
+        return get_default_proportions(df, pd.to_datetime(end_date) - pd.DateOffset(months=3), end_date)
 
     @property
     def csv_costs(self):
