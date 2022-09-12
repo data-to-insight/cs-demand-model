@@ -28,23 +28,25 @@ class EnumWithOther(EnumMeta):
                 )
 
 
+class OrderableEnum:
+    @property
+    def index(self) -> int:
+        return list(type(self)).index(self)
+
+    def __lt__(self, other):
+        return self.index < other.index
+
+
 @functools.total_ordering
-class PlacementCategory(Enum, metaclass=EnumWithOther):
+class PlacementCategory(OrderableEnum, Enum, metaclass=EnumWithOther):
     FOSTER = "Foster"
     RESIDENTIAL = "Resi"
     SUPPORTED = "Supported"
     OTHER = "Other"
     NOT_IN_CARE = "Not in care"
 
-    @property
-    def index(self) -> int:
-        return list(PlacementCategory).index(self)
 
-    def __lt__(self, other):
-        return self.index < other.index
-
-
-class PlacementSubCategory(Enum, metaclass=EnumWithOther):
+class PlacementSubCategory(OrderableEnum, Enum, metaclass=EnumWithOther):
     FOSTER_FRIEND_RELATIVE = PlacementCategory.FOSTER
     FOSTER_IN_HOUSE = PlacementCategory.FOSTER
     FOSTER_IFA = PlacementCategory.FOSTER
@@ -57,7 +59,7 @@ class PlacementSubCategory(Enum, metaclass=EnumWithOther):
     NOT_IN_CARE = PlacementCategory.NOT_IN_CARE
 
 
-class PlacementType(Enum, metaclass=EnumWithOther):
+class PlacementType(OrderableEnum, Enum, metaclass=EnumWithOther):
     H5 = PlacementSubCategory.SUPPORTED
 
     K1 = PlacementSubCategory.OTHER_SECURE_HOME
@@ -81,7 +83,7 @@ class PlacementType(Enum, metaclass=EnumWithOther):
     NOT_IN_CARE = PlacementSubCategory.NOT_IN_CARE
 
 
-class AgeBracket(Enum):
+class AgeBracket(OrderableEnum, Enum):
     BIRTH_TO_ONE = (-1, 1, (PlacementCategory.FOSTER, PlacementCategory.OTHER))
     ONE_TO_FIVE = (
         1,
@@ -160,7 +162,7 @@ class AgeBracket(Enum):
         return None
 
 
-class IntervalUnit(Enum):
+class IntervalUnit(OrderableEnum, Enum):
 
     DAY = "days", offsets.Day()
     WEEK = "weeks", offsets.Week()
