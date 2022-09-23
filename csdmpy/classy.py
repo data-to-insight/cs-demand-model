@@ -62,19 +62,20 @@ class Model:
 
 
     def predict(self):
-        if adjustments:
-            adjusted_future_pop = self.adjusted_future_pop
+        # if adjustments:
+        #     adjusted_future_pop = self.adjusted_future_pop
         
-        precalced_transition_matrices = self.step_probs
-        entrant_rates = self.entrant_rates
-        age_out_ratios = self.age_out_ratios
-        next_pop = self.initial_pop.copy()
-        adj_next_pop = self.initial_pop.copy()
-        date_vars = pd.Series(data=1, index=next_pop.index)
-        adj_date_vars = adj_next_pop.copy()
-        var_df = future_pop.copy()
-        adj_var_df = future_pop.copy()
-        age_mats = self.t_probs.copy()
+        # precalced_transition_matrices = self.step_probs
+        # entrant_rates = self.entrant_rates
+        # age_out_ratios = self.age_out_ratios
+        # next_pop = self.initial_pop.copy()
+        # adj_next_pop = self.initial_pop.copy()
+        # date_vars = pd.Series(data=1, index=next_pop.index)
+        # adj_date_vars = adj_next_pop.copy()
+        # var_df = future_pop.copy()
+        # adj_var_df = future_pop.copy()
+        # age_mats = self.t_probs.copy()
+
 
         A_DF = pd.DataFrame(data=pd.NA, columns=future_pop.columns, index=future_pop.index)
         T_DF = A_DF.copy()
@@ -84,9 +85,9 @@ class Model:
         # initialise tracker of time since the start of the prediction. Variances are supposed to increase with time.
         days_so_far = 0
         # initialise tracker of the cummulative multiplication of transition matrices over time.
-        T_so_far = {}
-        for age_bin, t_mat in age_mats.items():
-            T_so_far[age_bin] = pd.DataFrame(data=1, index=t_mat.index, columns=t_mat.columns)
+        # T_so_far = {}
+        # for age_bin, t_mat in age_mats.items():
+        #     T_so_far[age_bin] = pd.DataFrame(data=1, index=t_mat.index, columns=t_mat.columns)
 
         for date in future_pop.index:
             step_days = ts_info.loc[date, 'step_days']

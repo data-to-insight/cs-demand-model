@@ -161,17 +161,24 @@ class AgeBracket(OrderableEnum, Enum):
                 return bracket
         return None
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
 
 class IntervalUnit(OrderableEnum, Enum):
 
-    DAY = "days", offsets.Day()
-    WEEK = "weeks", offsets.Week()
-    MONTH = "months", offsets.MonthEnd()
-    YEAR = "years", offsets.YearEnd()
+    DAY = "days", offsets.Day(), 1
+    WEEK = "weeks", offsets.Week(), 7
+    MONTH = "months", offsets.MonthEnd(), 30
+    YEAR = "years", offsets.YearEnd(), 365
 
-    def __init__(self, label, offset):
+    def __init__(self, label, offset, days):
         self.__label = label
         self.__offset = offset
+        self.__days = days
 
     @property
     def label(self) -> str:
@@ -180,3 +187,7 @@ class IntervalUnit(OrderableEnum, Enum):
     @property
     def offset(self):
         return self.__offset
+
+    @property
+    def days(self) -> int:
+        return self.__days

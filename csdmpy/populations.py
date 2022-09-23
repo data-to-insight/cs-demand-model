@@ -15,7 +15,7 @@ def _get_ongoing(df, dt: date):
 
 
 def make_populations_ts(
-    df, start_date: date, end_date: date, step_size: StepSize, cat_col="placement_type"
+    df, start_date: date, end_date: date, step_size: StepSize = StepSize.DEFAULT, cat_col="placement_type"
 ):
     df = time_truncate(df, start_date, end_date)
     ts_info = make_date_index(start_date, end_date, step_size, align_end=True)
@@ -34,12 +34,11 @@ def make_populations_ts(
     populations_ts = pd.DataFrame(index=pops_ts.index, columns=multi_ind)
     populations_ts.update(pops_ts)
 
-    """
-    - columns which are only present in pops_ts will be ignored. There is no longer need to explicitly discard.
-    - all columns needed would have been created in populations_ts. There is no longer need to explicitly add.
-    - the fillna will assign all missing values to zero. There is no longer need to do this for the extra columns.
-    - The DataFrame generated will have all column names (age bins) in natural order.
-    """
+    # - columns which are only present in pops_ts will be ignored. There is no longer need to explicitly discard.
+    # - all columns needed would have been created in populations_ts. There is no longer need to explicitly add.
+    # - the fillna will assign all missing values to zero. There is no longer need to do this for the extra columns.
+    # - The DataFrame generated will have all column names (age bins) in natural order.
+
     populations_ts.fillna(0, inplace=True)
 
     return populations_ts

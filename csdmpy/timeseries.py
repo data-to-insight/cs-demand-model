@@ -2,7 +2,7 @@ from datetime import date
 
 import pandas as pd
 
-from csdmpy.constants import IntervalUnit
+from csdmpy.constants import IntervalUnit, AgeBracket
 
 
 class StepSize:
@@ -26,9 +26,16 @@ class StepSize:
     def pandas_offset(self) -> pd.DateOffset:
         return pd.DateOffset(**{self.unit.label: self.interval})
 
+    @property
+    def days(self) -> int:
+        return self.interval * self.unit.days
+
+
+StepSize.DEFAULT = StepSize(1, IntervalUnit.DAY)
+
 
 def make_date_index(
-    start_date: date, end_date: date, step_size: StepSize, align_end=False
+    start_date: date, end_date: date, step_size: StepSize = StepSize.DEFAULT, align_end=False
 ):
     step_off = step_size.pandas_offset
     ts_info = pd.DataFrame(columns=["step_days"])
@@ -85,3 +92,12 @@ def time_truncate(
         df[e_col] = df[e_col].clip(upper=end_date)
 
     return df
+
+
+def ageing_probs_per_bracket(step_size: StepSize = StepSize.DEFAULT):
+    ageing_ratios = {}
+    for age_bin in AgeBracket:
+        bin_width_days = (age_bin.end - age_bin.start) * 365
+        aged_out = step_size.days / bin_width_days
+        ageing_ratios[age_bin] = aged_out
+    return ageing_ratios

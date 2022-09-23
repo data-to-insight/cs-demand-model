@@ -120,19 +120,6 @@ def step_to_days(step_size):
     return days
 
 
-def ageing_probs_per_bracket(bin_defs, step_size):
-    ageing_ratios = {}
-    print(f'calculating age-up ratios with step: {step_size}, (days:{step_to_days(step_size)})')
-    for age_bin in bin_defs:
-        bin_min, bin_max = split_age_bin(age_bin)
-        bin_width_days = (bin_max - bin_min) * 365
-        step_size_days = step_to_days(step_size)
-        aged_out = step_size_days / bin_width_days
-        ageing_ratios[age_bin] = aged_out
-        print(f'({age_bin}) width: {bin_width_days}, ratio: {aged_out}')
-    return ageing_ratios
-
-
 def transition_probs_per_bracket(df, bin_defs, start_date, end_date):
     trans_mats = {}
     for age_bin, placement_types in bin_defs.items():
