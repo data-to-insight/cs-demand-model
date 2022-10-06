@@ -181,8 +181,8 @@ class DemandModellingDataContainer:
 
         combined = self._add_ages(combined)
         combined = self._add_age_bins(combined)
-        combined = self._add_related_placement_type(combined, 1, "PLACE_AFTER")
-        combined = self._add_related_placement_type(combined, -1, "PLACE_BEFORE")
+        combined = self._add_related_placement_type(combined, -1, "PLACE_AFTER")
+        combined = self._add_related_placement_type(combined, 1, "PLACE_BEFORE")
         combined = self._add_placement_categories(combined)
         return combined
 
@@ -212,14 +212,20 @@ class DemandModellingDataContainer:
     @staticmethod
     def _add_related_placement_type(combined: pd.DataFrame, offset: int, new_column_name: str) -> pd.DataFrame:
         """
-        Adds the related placement type, usually 1 for after, or -1 for preceeding.
+        Adds the related placement type, usually -1 for following, or 1 for preceeding.
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined.sort_values(['CHILD', 'DECOM', 'DEC'], inplace=True, na_position='first')
-        offset_mask = (combined['CHILD'] == combined['CHILD'].shift(-offset)) & (combined['DEC'] != combined['DECOM'].shift(-offset))
+        combined = combined.sort_values(['CHILD', 'DECOM', 'DEC'], na_position='first')
+
+        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(offset).fillna(PlacementType.NOT_IN_CARE.name)
+
+        offset_mask = combined['CHILD'] == combined['CHILD'].shift(offset)
+        if offset > 0:
+            offset_mask &= (combined['DECOM'] != combined['DEC'].shift(offset))
+        else:
+            offset_mask &= (combined['DEC'] != combined['DECOM'].shift(offset))
         combined.loc[offset_mask, new_column_name] = PlacementType.NOT_IN_CARE.name
-        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(1).fillna(PlacementType.NOT_IN_CARE.name)
         return combined
 
     @staticmethod

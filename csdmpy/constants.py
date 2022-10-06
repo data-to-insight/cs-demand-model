@@ -84,13 +84,19 @@ class PlacementType(OrderableEnum, Enum, metaclass=EnumWithOther):
 
 
 class AgeBracket(OrderableEnum, Enum):
-    BIRTH_TO_ONE = (-1, 1, (PlacementCategory.FOSTER, PlacementCategory.OTHER))
+    BIRTH_TO_ONE = (
+        -1,
+        1,
+        (
+            PlacementCategory.FOSTER,
+            PlacementCategory.OTHER
+        ),
+    )
     ONE_TO_FIVE = (
         1,
         5,
         (
             PlacementCategory.FOSTER,
-            PlacementCategory.RESIDENTIAL,
             PlacementCategory.OTHER,
         ),
     )
@@ -153,6 +159,10 @@ class AgeBracket(OrderableEnum, Enum):
         if next_ix >= len(self._member_names_):
             return None
         return list(type(self))[next_ix]
+
+    @property
+    def length_in_days(self):
+        return (self.end - self.start) * 365
 
     @staticmethod
     def bracket_for(age: float) -> Optional["AgeBracket"]:

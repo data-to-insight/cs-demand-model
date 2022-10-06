@@ -1,10 +1,10 @@
 from datetime import date
-from typing import Dict
+from typing import Dict, Iterable
 
 import numpy as np
 import pandas as pd
 
-from csdmpy.constants import AgeBracket
+from csdmpy.constants import AgeBracket, PlacementCategory
 from csdmpy.populations import get_daily_pops_new_way
 
 
@@ -114,3 +114,29 @@ def get_daily_transitions_new_way(
     """
     transition_rates = get_transition_rates(df, start_date, end_date)
     return group_transition_rates(transition_rates)
+
+
+def get_daily_entrants(df: pd.DataFrame, start_date: date, end_date: date, cat_list: Iterable[PlacementCategory]) -> pd.DataFrame:
+    df = df.copy()
+
+    # remove episodes starting outside the date range
+    df = df[(df["DECOM"] >= start_date) & (df["DECOM"] <= end_date)]
+
+    df = df[df["placement_type_before"] == PlacementCategory.NOT_IN_CARE].groupby("placement_type").size()
+    nudf = pd.Series(data=0, index=cat_list)
+    cols = list(set(df.index) & set(cat_list))
+    nudf[cols] = df[cols]
+
+    total_days = (end_date - start_date).days
+    entrants = nudf / total_days
+    return entrants.reindex(cat_list)
+
+
+def daily_entrants_per_bracket(df: pd.DataFrame, start_date: date, end_date: date) -> Dict[AgeBracket, pd.DataFrame]:
+    entrants_mat = {}
+    for age_bin in AgeBracket:
+        entrants_mat[age_bin] = {}
+        this_bin_df = df[(df["age"] >= age_bin.start) & (df["age"] < age_bin.end)].copy()
+        entry_rates = get_daily_entrants(this_bin_df, start_date, end_date, age_bin.placement_categories)
+        entrants_mat[age_bin] = entry_rates
+    return entrants_mat

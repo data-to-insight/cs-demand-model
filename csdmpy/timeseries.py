@@ -92,12 +92,3 @@ def time_truncate(
         df[e_col] = df[e_col].clip(upper=end_date)
 
     return df
-
-
-def ageing_probs_per_bracket(step_size: StepSize = StepSize.DEFAULT):
-    ageing_ratios = {}
-    for age_bin in AgeBracket:
-        bin_width_days = (age_bin.end - age_bin.start) * 365
-        aged_out = step_size.days / bin_width_days
-        ageing_ratios[age_bin] = aged_out
-    return ageing_ratios
