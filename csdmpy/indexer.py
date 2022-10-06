@@ -55,7 +55,9 @@ class TransitionIndexes:
 
     @staticmethod
     def transitions_all(exclude_self=False, levels=3):
-        return TransitionIndexes.mix(TransitionIndexes.__levels.transitions_all(exclude_self, levels))
+        return TransitionIndexes.mix(
+            TransitionIndexes.__levels.transitions_all(exclude_self, levels)
+        )
 
     @staticmethod
     def transitions_self():
@@ -65,10 +67,7 @@ class TransitionIndexes:
     def mix(source):
         source = list(source)
         if len(source[0]) == 2:
-            names = ['age_bin', 'placement_type']
+            names = ["age_bin", "placement_type"]
         else:
-            names = ['age_bin', 'placement_type', 'placement_type_after']
+            names = ["age_bin", "placement_type", "placement_type_after"]
         return pd.MultiIndex.from_tuples(source, names=names)
-
-
-

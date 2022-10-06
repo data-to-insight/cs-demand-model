@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 
 import pandas as pd
 
-from csdmpy.constants import Constants, AgeBracket, PlacementType
+from csdmpy.constants import AgeBracket, Constants, PlacementType
 from csdmpy.data.ssda903 import SSDA903TableType
 from csdmpy.datastore import DataFile, DataStore, TableType
 
@@ -193,8 +193,12 @@ class DemandModellingDataContainer:
         WARNING: This method modifies the dataframe in place.
         """
 
-        combined["age"] = (combined["DECOM"] - combined["DOB"]).dt.days / Constants.YEAR_IN_DAYS
-        combined["end_age"] = (combined["DEC"] - combined["DOB"]).dt.days / Constants.YEAR_IN_DAYS
+        combined["age"] = (
+            combined["DECOM"] - combined["DOB"]
+        ).dt.days / Constants.YEAR_IN_DAYS
+        combined["end_age"] = (
+            combined["DEC"] - combined["DOB"]
+        ).dt.days / Constants.YEAR_IN_DAYS
         return combined
 
     @staticmethod
@@ -204,26 +208,32 @@ class DemandModellingDataContainer:
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined['age_bin'] = combined['age'].apply(AgeBracket.bracket_for)
-        combined['end_age_bin'] = combined['end_age'].apply(AgeBracket.bracket_for)
+        combined["age_bin"] = combined["age"].apply(AgeBracket.bracket_for)
+        combined["end_age_bin"] = combined["end_age"].apply(AgeBracket.bracket_for)
         return combined
 
     @staticmethod
-    def _add_related_placement_type(combined: pd.DataFrame, offset: int, new_column_name: str) -> pd.DataFrame:
+    def _add_related_placement_type(
+        combined: pd.DataFrame, offset: int, new_column_name: str
+    ) -> pd.DataFrame:
         """
         Adds the related placement type, usually -1 for following, or 1 for preceeding.
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined = combined.sort_values(['CHILD', 'DECOM', 'DEC'], na_position='first')
+        combined = combined.sort_values(["CHILD", "DECOM", "DEC"], na_position="first")
 
-        combined[new_column_name] = combined.groupby('CHILD')['PLACE'].shift(offset).fillna(PlacementType.NOT_IN_CARE.name)
+        combined[new_column_name] = (
+            combined.groupby("CHILD")["PLACE"]
+            .shift(offset)
+            .fillna(PlacementType.NOT_IN_CARE.name)
+        )
 
-        offset_mask = combined['CHILD'] == combined['CHILD'].shift(offset)
+        offset_mask = combined["CHILD"] == combined["CHILD"].shift(offset)
         if offset > 0:
-            offset_mask &= (combined['DECOM'] != combined['DEC'].shift(offset))
+            offset_mask &= combined["DECOM"] != combined["DEC"].shift(offset)
         else:
-            offset_mask &= (combined['DEC'] != combined['DECOM'].shift(offset))
+            offset_mask &= combined["DEC"] != combined["DECOM"].shift(offset)
         combined.loc[offset_mask, new_column_name] = PlacementType.NOT_IN_CARE.name
         return combined
 
@@ -234,7 +244,13 @@ class DemandModellingDataContainer:
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined['placement_type'] = combined['PLACE'].apply(lambda x: PlacementType[x].value.value)
-        combined['placement_type_before'] = combined['PLACE_BEFORE'].apply(lambda x: PlacementType[x].value.value)
-        combined['placement_type_after'] = combined['PLACE_AFTER'].apply(lambda x: PlacementType[x].value.value)
+        combined["placement_type"] = combined["PLACE"].apply(
+            lambda x: PlacementType[x].value.value
+        )
+        combined["placement_type_before"] = combined["PLACE_BEFORE"].apply(
+            lambda x: PlacementType[x].value.value
+        )
+        combined["placement_type_after"] = combined["PLACE_AFTER"].apply(
+            lambda x: PlacementType[x].value.value
+        )
         return combined

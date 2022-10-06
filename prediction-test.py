@@ -1,12 +1,14 @@
-import pandas as pd
 import matplotlib.pyplot as pp
+import pandas as pd
+
 import csdmpy_fakedata as sample
 from csdmpy.datacontainer import DemandModellingDataContainer
 from csdmpy.population_stats import PopulationStats
 from csdmpy.prediction import ModelFactory
 
 hist_start, ref_start, ref_end, hist_end, pred_end = pd.to_datetime(
-    ['2015-01-01', '2019-07-01', '2020-01-01', '2020-01-01', '2021-07-01'])
+    ["2015-01-01", "2019-07-01", "2020-01-01", "2020-01-01", "2021-07-01"]
+)
 
 dc = DemandModellingDataContainer(sample.V1)
 stats = PopulationStats(dc.get_enriched_view())

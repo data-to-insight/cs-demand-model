@@ -5,7 +5,7 @@ from csdmpy.constants import AgeBracket
 
 def test_labels():
     assert AgeBracket.BIRTH_TO_ONE.label == "-1 to 1"
-    assert AgeBracket.ONE_TO_FIVE.label == '1 to 5'
+    assert AgeBracket.ONE_TO_FIVE.label == "1 to 5"
 
 
 def test_next():

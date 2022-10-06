@@ -87,10 +87,7 @@ class AgeBracket(OrderableEnum, Enum):
     BIRTH_TO_ONE = (
         -1,
         1,
-        (
-            PlacementCategory.FOSTER,
-            PlacementCategory.OTHER
-        ),
+        (PlacementCategory.FOSTER, PlacementCategory.OTHER),
     )
     ONE_TO_FIVE = (
         1,
