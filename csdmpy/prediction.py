@@ -3,8 +3,8 @@ from typing import Optional
 
 import pandas as pd
 
-from csdmpy.constants import AgeBracket
-from csdmpy.population_stats import PopulationStats, transitions_all, mix
+from csdmpy.population_stats import PopulationStats
+from csdmpy.indexer import TransitionIndexes
 
 
 class ModelFactory:
@@ -27,7 +27,7 @@ class ModelFactory:
 
     @property
     def entrants(self) -> pd.DataFrame:
-        return self.__model.get_daily_entrants(self.__reference_start, self.__reference_end)
+        return self.__model.daily_entrants(self.__reference_start, self.__reference_end)
 
 
 class ModelPredictor:
@@ -38,10 +38,10 @@ class ModelPredictor:
 
         # Make sure we have a full set of populations
         self.__initial_population = factory.model.stock.loc[[self.__start_date]].copy(deep=False)
-        self.__initial_population = self.__initial_population.T.reindex(mix(transitions_all(levels=2))).fillna(0)
+        self.__initial_population = self.__initial_population.T.reindex(TransitionIndexes.transitions_all(levels=2)).fillna(0)
 
         self.__current_predictions = pd.DataFrame(
-            columns=mix(transitions_all(levels=2))
+            columns=TransitionIndexes.transitions_all(levels=2)
         )
 
     @property
@@ -126,15 +126,21 @@ class ModelPredictor:
 
         return c.sum(axis=1)
 
-    def predict(self, days: int = 1):
+    def predict(self, days: int = 1, progress=False):
         current_populations = self.current.copy(deep=False).iloc[:, 0]
 
+        if progress:
+            from tqdm import trange
+            iterator = trange(days)
+        else:
+            iterator = range(days)
+
         predictions = []
-        for i in range(days):
+        for i in iterator:
             current_populations = self.temp_age_population(current_populations)
             current_populations = self.temp_transition_population(current_populations.adjusted)
             current_populations = self.temp_new_entrants(current_populations)
             current_populations.name = self.__start_date + timedelta(days=i+1)
             predictions.append(current_populations)
 
-        return predictions
+        return pd.concat(predictions, axis=1).T

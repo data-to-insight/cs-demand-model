@@ -2,12 +2,11 @@ import csv
 import dataclasses
 import io
 import logging
-from functools import lru_cache
 from typing import Any, List, Optional
 
 import pandas as pd
 
-from csdmpy.constants import Constants, AgeBracket, PlacementType, PlacementCategory
+from csdmpy.constants import Constants, AgeBracket, PlacementType
 from csdmpy.data.ssda903 import SSDA903TableType
 from csdmpy.datastore import DataFile, DataStore, TableType
 

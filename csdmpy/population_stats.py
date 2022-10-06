@@ -1,47 +1,10 @@
-from functools import lru_cache, cached_property
-from typing import Dict, Iterable
-
+from functools import lru_cache
 import pandas as pd
 import numpy as np
 from datetime import date
 
-from csdmpy.constants import AgeBracket, PlacementCategory
-
-
-def _group_and_count_dates(df: pd.DataFrame, column: str, name: str, age_name: str) -> pd.Series:
-    """
-    Group the DataFrame by the given column and count the number of rows in each group.
-    """
-    groups = df.groupby([column, "placement_type", age_name]).size()
-    groups.name = name
-    groups.index.names = ["date", "placement_type", 'age_bin']
-    return groups
-
-
-def transitions_all(exclude_self=False, levels=3):
-    for age_bin in AgeBracket:
-        for pt1 in age_bin.placement_categories:
-            if levels == 2:
-                yield age_bin, pt1
-            else:
-                for pt2 in age_bin.placement_categories:
-                    if not (exclude_self and pt1 == pt2):
-                        yield age_bin, pt1, pt2
-
-
-def transitions_self():
-    for age_bin in AgeBracket:
-        for pt1 in age_bin.placement_categories:
-            yield age_bin, pt1, pt1
-
-
-def mix(source):
-    source = list(source)
-    if len(source[0]) == 2:
-        names = ['age_bin', 'placement_type']
-    else:
-        names = ['age_bin', 'placement_type', 'placement_type_after']
-    return pd.MultiIndex.from_tuples(source, names=names)
+from csdmpy.constants import PlacementCategory
+from csdmpy.indexer import TransitionIndexes, TransitionLevels
 
 
 class PopulationStats:
@@ -52,50 +15,6 @@ class PopulationStats:
     @property
     def df(self):
         return self.__df
-
-    @lru_cache(maxsize=5)
-    def get_daily_pops(self, start_date: date, end_date: date):
-        """
-        Calculates the daily population for each age bin and placement type by
-        finding all the transitions (start or end of episode), summing to get total populations for each
-        day and then resampling to get the daily populations.
-        """
-        beginnings = _group_and_count_dates(self.df, "DECOM", "nof_decoms", "age_bin")
-        endings = _group_and_count_dates(self.df, "DEC", "nof_decs", "age_bin")
-
-        pops = pd.merge(
-            left=beginnings, right=endings, left_index=True, right_index=True, how="outer"
-        )
-        pops = pops.fillna(0).sort_values("date")
-
-        transitions = pops["nof_decoms"] - pops["nof_decs"]
-
-        total_counts = (
-            transitions.groupby(["placement_type", "age_bin"])
-                .cumsum()
-                .unstack(["age_bin", "placement_type"])
-        )
-
-        daily_counts = total_counts.resample("D").first().fillna(method="ffill")
-
-        return daily_counts.truncate(before=start_date, after=end_date).fillna(0)
-
-    @cached_property
-    def deltas(self):
-        beginnings = self.df[['DECOM', 'age_bin', 'placement_type']].copy(deep=False)
-        beginnings['state'] = list(zip(beginnings.age_bin, beginnings.placement_type))
-        beginnings['delta'] = 1
-        beginnings = beginnings[['DECOM', 'state', 'delta']]
-        beginnings.columns = ['date', 'state', 'delta']
-
-        endings = self.df[['DEC', 'age_bin', 'placement_type', 'placement_type_after']].copy(deep=False)
-        endings['state'] = list(zip(endings.age_bin, endings.placement_type))
-        endings['state_after'] = list(zip(endings.age_bin, endings.placement_type_after))
-        endings['delta'] = -1
-        endings = endings[['DEC', 'state', 'state_after', 'delta']]
-        endings.columns = ['date', 'state', 'state_after', 'delta']
-
-        return pd.concat([beginnings, endings])
 
     @property
     def stock(self):
@@ -145,7 +64,7 @@ class PopulationStats:
         transition_rates = pd.DataFrame(transition_rates)
 
         # Fill in blank 'valid' values
-        zeros = pd.DataFrame(0, index=mix(transitions_all(exclude_self=True)), columns=['zeros'])
+        zeros = pd.DataFrame(0, index=TransitionIndexes.transitions_all(exclude_self=True), columns=['zeros'])
         transition_rates = transition_rates.merge(zeros, left_index=True, right_index=True, how='outer').fillna(0)
 
         return transition_rates.transition_rate
@@ -155,7 +74,7 @@ class PopulationStats:
         rates = self.raw_transition_rates(start_date, end_date)
 
         # Exclude self transitions
-        rates = rates[~rates.index.isin(transitions_self())]
+        rates = rates[~rates.index.isin(TransitionLevels.transitions_self())]
 
         # Now sum the remaining rates
         rates = rates.reset_index().groupby(['age_bin', 'placement_type']).sum()
@@ -195,36 +114,12 @@ class PopulationStats:
         merged_rates.name = "transition_rate"
 
         if not include_not_in_care:
-            merged_rates = merged_rates.loc[mix(transitions_all())]
+            merged_rates = merged_rates.loc[TransitionIndexes.transitions_all()]
 
         return merged_rates
 
     @lru_cache(maxsize=5)
-    def get_transitions(self, start_date: date, end_date: date):
-        """
-        Returns a DataFrame of transitions for each age bracket. The transitions are calculated from each
-        episode end, using the placement type and the placement type after the episode end.
-
-        """
-        # We don't care about internal transitions
-        df = self.df
-        df = df[df.placement_type != df.placement_type_after]
-        df = df[(df.DEC >= start_date) & (df.DEC <= end_date)]
-
-        transitions = df.groupby(
-            ["end_age_bin", "placement_type", "placement_type_after"]
-        ).size()
-        transitions.name = "transition_count"
-
-        transitions = pd.DataFrame(transitions)
-        transitions['period_duration'] = (end_date - start_date).days
-
-        transitions['transition_probability'] = transitions.transition_count / transitions.period_duration
-        transitions.index.names = ["age_bin", "placement_type", "placement_type_after"]
-        return transitions
-
-    @lru_cache(maxsize=5)
-    def get_daily_entrants(self, start_date: date, end_date: date) -> pd.DataFrame:
+    def daily_entrants(self, start_date: date, end_date: date) -> pd.DataFrame:
         """
         Returns the number of entrants and the daily_probability of entrants for each age bracket and placement type.
         """
@@ -246,10 +141,3 @@ class PopulationStats:
         df = df.set_index(['age_bin', 'placement_type'])
 
         return df
-
-    @cached_property
-    def ageing_probs(self):
-        daily_probs = [(*t, t[0].daily_probability) for t in transitions_all(levels=2)]
-        daily_probs = pd.DataFrame(daily_probs, columns=['age_bin', 'placement_type', 'ageing_out'])
-        daily_probs = daily_probs.set_index(['age_bin', 'placement_type'])
-        return daily_probs.ageing_out
