@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from functools import cached_property
 from typing import Optional
 
 import pandas as pd
@@ -16,74 +17,75 @@ class ModelFactory:
         self.__reference_end = reference_end
 
     def predictor(self, start_date: date) -> "ModelPredictor":
-        return ModelPredictor(self, start_date)
+        # Make sure we have a full set of populations
+        pop = (
+            self.model.stock.loc[[start_date]]
+            .copy(deep=False)
+            .T.reindex(TransitionIndexes.transitions_all(levels=2))
+            .fillna(0)[start_date]
+        )
+
+        return ModelPredictor(
+            pop,
+            self.transition_matrix,
+            self.entrants.daily_entry_probability,
+            start_date,
+        )
 
     @property
     def model(self) -> PopulationStats:
         return self.__model
 
-    @property
+    @cached_property
     def transition_rates(self) -> pd.DataFrame:
         return self.__model.transition_rates(
             self.__reference_start, self.__reference_end
         )
 
-    @property
+    @cached_property
+    def transition_matrix(self) -> pd.DataFrame:
+        return self.transition_rates.unstack().fillna(0)
+
+    @cached_property
     def entrants(self) -> pd.DataFrame:
         return self.__model.daily_entrants(self.__reference_start, self.__reference_end)
 
 
 class ModelPredictor:
-    def __init__(self, factory: ModelFactory, start_date: date):
-        self.__factory = factory
+    def __init__(
+        self,
+        population: pd.Series,
+        rates_matrix: pd.DataFrame,
+        entrants: pd.Series,
+        start_date: date,
+    ):
+        self.__initial_population = population
+        self.__rates_matrix = rates_matrix
+        self.__entrants = entrants
         self.__start_date = start_date
 
-        # Make sure we have a full set of populations
-        self.__initial_population = factory.model.stock.loc[[self.__start_date]].copy(
-            deep=False
-        )
-        self.__initial_population = self.__initial_population.T.reindex(
-            TransitionIndexes.transitions_all(levels=2)
-        ).fillna(0)
-
-        self.__current_predictions = pd.DataFrame(
-            columns=TransitionIndexes.transitions_all(levels=2)
-        )
-
     @property
-    def start_population(self):
+    def initial_population(self):
         return self.__initial_population
 
     @property
-    def predictions(self):
-        return self.__current_predictions.copy(deep=False)
+    def date(self):
+        return self.__start_date
 
-    @property
-    def current(self):
-        if self.__current_predictions.empty:
-            return self.__initial_population
-        else:
-            return self.__current_predictions.iloc[-1]
-
-    @property
-    def aged_out(self):
-        current = self.current.copy(deep=False)
-        stock_column = current.columns[0]
-        current = current.reset_index()
+    def aged_out(self, start_population: pd.Series):
+        current = start_population.reset_index()
         current["prob"] = current.age_bin.apply(lambda x: x.daily_probability)
-        current["aged_out"] = current.prob * current[stock_column]
+        current["aged_out"] = current.prob * current[self.initial_population.name]
         current["next_age_bin"] = current.age_bin.apply(lambda x: x.next)
         return current
 
-    def temp_age_population(self, start_population: Optional[pd.DataFrame] = None):
-        if start_population is None:
-            c = self.current.copy(deep=False).iloc[:, 0]
-        else:
-            c = start_population.copy(deep=False)
+    def age_population(self, start_population: pd.Series):
+        """
+        Ages the given population by one day and returns the
+        """
+        c = pd.DataFrame(start_population)
 
-        c = pd.DataFrame(c)
-
-        aged_out = self.aged_out
+        aged_out = self.aged_out(start_population)
 
         # Calculate those who age out per bin
         leaving = aged_out.set_index(["age_bin", "placement_type"]).aged_out
@@ -101,21 +103,14 @@ class ModelPredictor:
 
         # Add the corrections
         c["adjusted"] = c.iloc[:, 0] - c.aged_out + c.aged_in
-        return c
+        return c.adjusted
 
-    def temp_transition_population(
-        self, start_population: Optional[pd.DataFrame] = None
-    ):
-        if start_population is None:
-            c = self.current.copy(deep=False).iloc[:, 0]
-        else:
-            c = start_population.copy(deep=False)
-
-        # Create the to-from transition matrix
-        rates_matrix = self.__factory.transition_rates.unstack().fillna(0)
-
+    def transition_population(self, start_population: pd.Series):
+        """
+        Shuffles the population according to the transition rates by one day
+        """
         # Multiply the rates matrix by the current population
-        adjusted = rates_matrix.multiply(c, axis="index")
+        adjusted = self.__rates_matrix.multiply(start_population, axis="index")
 
         # Sum the rows to get the total number of transitions
         adjusted = adjusted.reset_index().groupby("age_bin").sum().stack()
@@ -124,20 +119,31 @@ class ModelPredictor:
 
         return adjusted
 
-    def temp_new_entrants(self, start_population: Optional[pd.DataFrame] = None):
-        if start_population is None:
-            c = self.current.copy(deep=False).iloc[:, 0]
-        else:
-            c = start_population.copy(deep=False)
-
-        c = pd.DataFrame(c)
-        c["entry_prob"] = self.__factory.entrants.daily_entry_probability
+    def add_new_entrants(self, start_population: pd.Series):
+        """
+        Adds new entrants to the population
+        """
+        c = pd.DataFrame(start_population)
+        c["entry_prob"] = self.__entrants
         c = c.fillna(0)
 
         return c.sum(axis=1)
 
+    def next(self):
+        next_population = self.initial_population
+        next_population = self.age_population(next_population)
+        next_population = self.transition_population(next_population)
+        next_population = self.add_new_entrants(next_population)
+
+        next_date = self.date + timedelta(days=1)
+        next_population.name = next_date
+
+        return ModelPredictor(
+            next_population, self.__rates_matrix, self.__entrants, next_date
+        )
+
     def predict(self, days: int = 1, progress=False):
-        current_populations = self.current.copy(deep=False).iloc[:, 0]
+        predictor = self
 
         if progress:
             from tqdm import trange
@@ -148,12 +154,13 @@ class ModelPredictor:
 
         predictions = []
         for i in iterator:
-            current_populations = self.temp_age_population(current_populations)
-            current_populations = self.temp_transition_population(
-                current_populations.adjusted
-            )
-            current_populations = self.temp_new_entrants(current_populations)
-            current_populations.name = self.__start_date + timedelta(days=i + 1)
-            predictions.append(current_populations)
+            predictor = predictor.next()
+
+            pop = predictor.initial_population
+            pop.name = self.__start_date + timedelta(days=i + 1)
+            predictions.append(pop)
+
+            if progress:
+                iterator.set_description(f"{pop.name}")
 
         return pd.concat(predictions, axis=1).T
