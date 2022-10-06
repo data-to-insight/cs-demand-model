@@ -45,6 +45,12 @@ class PlacementCategory(OrderableEnum, Enum, metaclass=EnumWithOther):
     OTHER = "Other"
     NOT_IN_CARE = "Not in care"
 
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return self.value
+
 
 class PlacementSubCategory(OrderableEnum, Enum, metaclass=EnumWithOther):
     FOSTER_FRIEND_RELATIVE = PlacementCategory.FOSTER
@@ -173,32 +179,7 @@ class AgeBracket(OrderableEnum, Enum):
         return None
 
     def __str__(self):
-        return self.name
+        return f"{self.start} to {self.end}"
 
     def __repr__(self):
-        return self.name
-
-
-class IntervalUnit(OrderableEnum, Enum):
-
-    DAY = "days", offsets.Day(), 1
-    WEEK = "weeks", offsets.Week(), 7
-    MONTH = "months", offsets.MonthEnd(), 30
-    YEAR = "years", offsets.YearEnd(), 365
-
-    def __init__(self, label, offset, days):
-        self.__label = label
-        self.__offset = offset
-        self.__days = days
-
-    @property
-    def label(self) -> str:
-        return self.__label
-
-    @property
-    def offset(self):
-        return self.__offset
-
-    @property
-    def days(self) -> int:
-        return self.__days
+        return f"{self.start} to {self.end}"
