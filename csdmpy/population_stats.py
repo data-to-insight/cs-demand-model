@@ -18,13 +18,15 @@ def _group_and_count_dates(df: pd.DataFrame, column: str, name: str, age_name: s
     return groups
 
 
-def transitions_all(exclude_self=False):
+def transitions_all(exclude_self=False, levels=3):
     for age_bin in AgeBracket:
         for pt1 in age_bin.placement_categories:
-            for pt2 in age_bin.placement_categories:
-                if exclude_self and pt1 == pt2:
-                    continue
-                yield age_bin, pt1, pt2
+            if levels == 2:
+                yield age_bin, pt1
+            else:
+                for pt2 in age_bin.placement_categories:
+                    if not (exclude_self and pt1 == pt2):
+                        yield age_bin, pt1, pt2
 
 
 def transitions_self():
@@ -34,7 +36,12 @@ def transitions_self():
 
 
 def mix(source):
-    return pd.MultiIndex.from_tuples(source, names=['age_bin', 'placement_type', 'placement_type_after'])
+    source = list(source)
+    if len(source[0]) == 2:
+        names = ['age_bin', 'placement_type']
+    else:
+        names = ['age_bin', 'placement_type', 'placement_type_after']
+    return pd.MultiIndex.from_tuples(source, names=names)
 
 
 class PopulationStats:
@@ -239,3 +246,10 @@ class PopulationStats:
         df = df.set_index(['age_bin', 'placement_type'])
 
         return df
+
+    @cached_property
+    def ageing_probs(self):
+        daily_probs = [(*t, t[0].daily_probability) for t in transitions_all(levels=2)]
+        daily_probs = pd.DataFrame(daily_probs, columns=['age_bin', 'placement_type', 'ageing_out'])
+        daily_probs = daily_probs.set_index(['age_bin', 'placement_type'])
+        return daily_probs.ageing_out

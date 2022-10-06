@@ -1,48 +1,140 @@
+from datetime import date, timedelta
+from typing import Optional
+
 import pandas as pd
 
 from csdmpy.constants import AgeBracket
+from csdmpy.population_stats import PopulationStats, transitions_all, mix
 
 
-def predict(self, initial_population: pd.DataFrame, t_matrices: dict[AgeBracket, pd.DataFrame]):
-    # entrant_rates = self.entrant_rates
-    # age_out_ratios = self.age_out_ratios
-    # precalced_transition_matrices = self.step_probs
+class ModelFactory:
 
-    days_so_far = 0
-    # next_pop.loc[:, :] = 0
+    def __init__(self, model: PopulationStats, reference_start: date, reference_end: date):
+        self.__model = model
+        self.__reference_start = reference_start
+        self.__reference_end = reference_end
 
-    for date in initial_population.index:
-        step_days = 1
-        days_so_far += step_days
-        aged_pop = apply_ageing(prev_pop, age_out_ratios)
+    def predictor(self, start_date: date) -> "ModelPredictor":
+        return ModelPredictor(self, start_date)
 
-        for age_bracket in AgeBracket:
-            T = precalced_transition_matrices[step_days][age_bracket]
-            next_pop[age_bracket] = T.dot(aged_pop[age_bracket])
+    @property
+    def model(self) -> PopulationStats:
+        return self.__model
 
-        for age_bracket in next_pop.index.get_level_values('age_bin').unique():
-            next_pop[age_bracket] += entrant_rates[age_bracket] * step_days
+    @property
+    def transition_rates(self) -> pd.DataFrame:
+        return self.__model.transition_rates(self.__reference_start, self.__reference_end)
 
-        future_pop.loc[date] = next_pop
-
-    self.future_pop = future_pop
+    @property
+    def entrants(self) -> pd.DataFrame:
+        return self.__model.get_daily_entrants(self.__reference_start, self.__reference_end)
 
 
-def apply_ageing(pops, ageing_dict):
-    aged_pops = pd.Series()
-    for age_bin in AgeBracket:
-        aged_out = pops.xs(age_bin, level='age_bin', drop_level=False) * ageing_dict[age_bin]
-        aged_pops[age_bin] = pops.xs(age_bin, level='age_bin', drop_level=False) - aged_out
-        next_bin = age_bin.next()
-        if next_bin:
-            aged_pops[next_bin] = pops.xs(next_bin, level='age_bin', drop_level=False) + aged_out
+class ModelPredictor:
 
+    def __init__(self, factory: ModelFactory, start_date: date):
+        self.__factory = factory
+        self.__start_date = start_date
 
-        try:
-            next_ab = age_bin_list[age_bin_list.index(ab) + 1]
-        except IndexError:
-            print(f'no age bracket above {ab} - {aged_out.sum()} out in the world')
-            continue
-        mi = pd.MultiIndex.from_product([(next_ab, ), pops[ab].index], names=['age_bin', 'placement_type'])
-        aged_pops[mi] = pops[mi].values + aged_out[ab].values # is this safe?
-    return aged_pops
+        # Make sure we have a full set of populations
+        self.__initial_population = factory.model.stock.loc[[self.__start_date]].copy(deep=False)
+        self.__initial_population = self.__initial_population.T.reindex(mix(transitions_all(levels=2))).fillna(0)
+
+        self.__current_predictions = pd.DataFrame(
+            columns=mix(transitions_all(levels=2))
+        )
+
+    @property
+    def start_population(self):
+        return self.__initial_population
+
+    @property
+    def predictions(self):
+        return self.__current_predictions.copy(deep=False)
+
+    @property
+    def current(self):
+        if self.__current_predictions.empty:
+            return self.__initial_population
+        else:
+            return self.__current_predictions.iloc[-1]
+
+    @property
+    def aged_out(self):
+        current = self.current.copy(deep=False)
+        stock_column = current.columns[0]
+        current = current.reset_index()
+        current['prob'] = current.age_bin.apply(lambda x: x.daily_probability)
+        current['aged_out'] = current.prob * current[stock_column]
+        current['next_age_bin'] = current.age_bin.apply(lambda x: x.next)
+        return current
+
+    def temp_age_population(self, start_population: Optional[pd.DataFrame] = None):
+        if start_population is None:
+            c = self.current.copy(deep=False).iloc[:, 0]
+        else:
+            c = start_population.copy(deep=False)
+
+        c = pd.DataFrame(c)
+
+        aged_out = self.aged_out
+
+        # Calculate those who age out per bin
+        leaving = aged_out.set_index(['age_bin', 'placement_type']).aged_out
+
+        # Calculate those who arrive per bin
+        arriving = aged_out.dropna().set_index(['next_age_bin', 'placement_type']).aged_out
+        arriving.index.names = ['age_bin', 'placement_type']
+
+        # Add as columns and fill missing values with zero
+        c['aged_out'] = leaving
+        c['aged_in'] = arriving
+        c = c.fillna(0)
+
+        # Add the corrections
+        c['adjusted'] = c.iloc[:, 0] - c.aged_out + c.aged_in
+        return c
+
+    def temp_transition_population(self, start_population: Optional[pd.DataFrame] = None):
+        if start_population is None:
+            c = self.current.copy(deep=False).iloc[:, 0]
+        else:
+            c = start_population.copy(deep=False)
+
+        # Create the to-from transition matrix
+        rates_matrix = self.__factory.transition_rates.unstack().fillna(0)
+
+        # Multiply the rates matrix by the current population
+        adjusted = rates_matrix.multiply(c, axis="index")
+
+        # Sum the rows to get the total number of transitions
+        adjusted = adjusted.reset_index().groupby('age_bin').sum().stack()
+        adjusted.index.names = ['age_bin', 'placement_type']
+        adjusted.name = 'population'
+
+        return adjusted
+
+    def temp_new_entrants(self, start_population: Optional[pd.DataFrame] = None):
+        if start_population is None:
+            c = self.current.copy(deep=False).iloc[:, 0]
+        else:
+            c = start_population.copy(deep=False)
+
+        c = pd.DataFrame(c)
+        c['entry_prob'] = self.__factory.entrants.daily_entry_probability
+        c = c.fillna(0)
+
+        return c.sum(axis=1)
+
+    def predict(self, days: int = 1):
+        current_populations = self.current.copy(deep=False).iloc[:, 0]
+
+        predictions = []
+        for i in range(days):
+            current_populations = self.temp_age_population(current_populations)
+            current_populations = self.temp_transition_population(current_populations.adjusted)
+            current_populations = self.temp_new_entrants(current_populations)
+            current_populations.name = self.__start_date + timedelta(days=i+1)
+            predictions.append(current_populations)
+
+        return predictions

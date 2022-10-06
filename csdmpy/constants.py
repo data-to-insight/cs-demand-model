@@ -164,6 +164,10 @@ class AgeBracket(OrderableEnum, Enum):
     def length_in_days(self):
         return (self.end - self.start) * 365
 
+    @property
+    def daily_probability(self):
+        return 1 / self.length_in_days
+
     @staticmethod
     def bracket_for(age: float) -> Optional["AgeBracket"]:
         for bracket in AgeBracket:
