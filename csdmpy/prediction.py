@@ -1,11 +1,15 @@
 from datetime import date, timedelta
 from functools import cached_property
-from typing import Optional
 
 import pandas as pd
 
 from csdmpy.indexer import TransitionIndexes
 from csdmpy.population_stats import PopulationStats
+
+try:
+    import tqdm
+except ImportError:
+    tqdm = None
 
 
 class ModelFactory:
@@ -145,12 +149,12 @@ class ModelPredictor:
     def predict(self, days: int = 1, progress=False):
         predictor = self
 
-        if progress:
-            from tqdm import trange
-
-            iterator = trange(days)
+        if progress and tqdm:
+            iterator = tqdm.trange(days)
+            set_description = iterator.set_description
         else:
             iterator = range(days)
+            set_description = lambda x: None
 
         predictions = []
         for i in iterator:
@@ -160,7 +164,6 @@ class ModelPredictor:
             pop.name = self.__start_date + timedelta(days=i + 1)
             predictions.append(pop)
 
-            if progress:
-                iterator.set_description(f"{pop.name}")
+            set_description(f"{pop.name}")
 
         return pd.concat(predictions, axis=1).T

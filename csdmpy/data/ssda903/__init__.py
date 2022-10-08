@@ -1,6 +1,4 @@
-from enum import Enum
-
-from csdmpy.datastore.__api import TableType
+from csdmpy.datastore import TableType
 
 
 class Episodes:

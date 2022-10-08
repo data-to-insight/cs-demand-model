@@ -1,9 +1,9 @@
 from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO
-from zipfile import ZipFile, ZipInfo
+from zipfile import ZipFile
 
-from .__api import DataFile, DataStore, Metadata
+from ._api import DataFile, DataStore, Metadata
 
 
 class ZipDataStore(DataStore):

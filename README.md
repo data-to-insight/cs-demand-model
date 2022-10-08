@@ -30,8 +30,6 @@ data. The data is in the form of SSDA903 files, which are a set of tabular files
 for each reporting year. We currently only support CSV files, but the API
 is designed to be easily extensible to other file formats.
 
-TODO: Do the files need to be sorted? I know we originally asked about year, but I
-cannot see this in the current code. 
 
 ### File handling
 
@@ -46,6 +44,10 @@ load data in different environments. The most important of which is
 to pass on any required metadata about the files. However,
 as mentioned, I'm not sure the metadata is that important, so
 there may be additional scope for improvement.
+
+The important thing is that the different files for each year is combined correctly,
+so we need to know the year of each file. How to provide this information depends
+on the datastore implementation.
 
 TODO: Review the datastore API
 
