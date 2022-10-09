@@ -3,7 +3,6 @@ from functools import cached_property
 
 import pandas as pd
 
-from csdmpy.indexer import TransitionIndexes
 from csdmpy.population_stats import PopulationStats
 
 try:
@@ -17,6 +16,7 @@ class ModelFactory:
         self, model: PopulationStats, reference_start: date, reference_end: date
     ):
         self.__model = model
+        self.__config = model.config
         self.__reference_start = reference_start
         self.__reference_end = reference_end
 
@@ -25,7 +25,7 @@ class ModelFactory:
         pop = (
             self.model.stock.loc[[start_date]]
             .copy(deep=False)
-            .T.reindex(TransitionIndexes.transitions_all(levels=2))
+            .T.reindex(self.__config.states(as_index=True))
             .fillna(0)[start_date]
         )
 

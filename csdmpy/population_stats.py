@@ -4,17 +4,21 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from csdmpy.constants import PlacementCategory
-from csdmpy.indexer import TransitionIndexes, TransitionLevels
+from csdmpy.config import Config
 
 
 class PopulationStats:
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, config: Config):
         self.__df = df
+        self.__config = config
 
     @property
     def df(self):
         return self.__df
+
+    @property
+    def config(self):
+        return self.__config
 
     @property
     def stock(self):
@@ -48,13 +52,17 @@ class PopulationStats:
             .cumsum()
         )
 
+        # Resample to daily counts and forward-fill in missing days
         pops = (
             pops.unstack(["age_bin", "placement_type"])
             .resample("D")
             .first()
             .fillna(method="ffill")
-            .fillna(0)
         )
+
+        # Add the missing age bins and fill with zeros
+        pops = pops.T.reindex(self.__config.states(as_index=True)).T.fillna(0)
+
         return pops
 
     @property
@@ -69,6 +77,12 @@ class PopulationStats:
             .fillna(0)
             .asfreq("D", fill_value=0)
         )
+
+        # Add the missing age bins and fill with zeros
+        transitions = transitions.T.reindex(
+            self.__config.transitions(not_in_care=True, as_index=True)
+        ).T.fillna(0)
+
         return transitions
 
     @lru_cache(maxsize=5)
@@ -80,30 +94,22 @@ class PopulationStats:
         # Calculate the transition rates
         stock, transitions = stock.align(transitions)
         transition_rates = transitions / stock.shift(1).fillna(method="bfill")
+        transition_rates = transition_rates.fillna(0)
 
         # Use the mean rates
         transition_rates = transition_rates.mean(axis=0)
         transition_rates.name = "transition_rate"
-        transition_rates = pd.DataFrame(transition_rates)
 
-        # Fill in blank 'valid' values
-        zeros = pd.DataFrame(
-            0,
-            index=TransitionIndexes.transitions_all(exclude_self=True),
-            columns=["zeros"],
-        )
-        transition_rates = transition_rates.merge(
-            zeros, left_index=True, right_index=True, how="outer"
-        ).fillna(0)
-
-        return transition_rates.transition_rate
+        return transition_rates
 
     @lru_cache(maxsize=5)
     def summed_rates(self, start_date: date, end_date: date):
         rates = self.raw_transition_rates(start_date, end_date)
 
         # Exclude self transitions
-        rates = rates[~rates.index.isin(TransitionLevels.transitions_self())]
+        rates = rates[
+            ~rates.index.isin(self.__config.transitions(other_transitions=False))
+        ]
 
         # Now sum the remaining rates
         rates = rates.reset_index().groupby(["age_bin", "placement_type"]).sum()
@@ -149,7 +155,7 @@ class PopulationStats:
         merged_rates.name = "transition_rate"
 
         if not include_not_in_care:
-            merged_rates = merged_rates.loc[TransitionIndexes.transitions_all()]
+            merged_rates = merged_rates.loc[self.__config.transitions(as_index=True)]
 
         return merged_rates
 
@@ -158,6 +164,8 @@ class PopulationStats:
         """
         Returns the number of entrants and the daily_probability of entrants for each age bracket and placement type.
         """
+        PlacementCategories = self.__config.PlacementCategories
+
         df = self.df
 
         # Only look at episodes starting in analysis period
@@ -165,7 +173,7 @@ class PopulationStats:
 
         # Group by age bin and placement type
         df = (
-            df[df["placement_type_before"] == PlacementCategory.NOT_IN_CARE]
+            df[df["placement_type_before"] == PlacementCategories.NOT_IN_CARE]
             .groupby(["age_bin", "placement_type"])
             .size()
         )

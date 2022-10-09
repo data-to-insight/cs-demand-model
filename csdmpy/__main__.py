@@ -4,6 +4,7 @@ import click
 import pandas as pd
 
 from csdmpy import DemandModellingDataContainer, ModelFactory, PopulationStats
+from csdmpy.config import Config
 from csdmpy.datastore import fs_datastore
 
 try:
@@ -50,9 +51,10 @@ def extract(source: str, start: date, end: date):
     """
     Opens SOURCE and runs analysis on the data between START and END. SOURCE can be a file or a filesystem URL.
     """
+    config = Config()
     datastore = fs_datastore(source)
-    dc = DemandModellingDataContainer(datastore)
-    stats = PopulationStats(dc.get_enriched_view())
+    dc = DemandModellingDataContainer(datastore, config)
+    stats = PopulationStats(dc.get_enriched_view(), config)
     click.echo(stats.transition_rates(start, end))
 
 
@@ -63,9 +65,10 @@ def extract(source: str, start: date, end: date):
 @click.argument("prediction_date", type=click.DateTime(formats=["%Y-%m-%d"]))
 @plot_option("--plot", "-p", is_flag=True, help="Plot the results")
 def predict(source: str, start: date, end: date, prediction_date: date, plot: bool):
+    config = Config()
     datastore = fs_datastore(source)
-    dc = DemandModellingDataContainer(datastore)
-    stats = PopulationStats(dc.get_enriched_view())
+    dc = DemandModellingDataContainer(datastore, config)
+    stats = PopulationStats(dc.get_enriched_view(), config)
     fac = ModelFactory(stats, start, end)
     predictor = fac.predictor(end)
     prediction_days = (prediction_date - end).days
@@ -79,7 +82,7 @@ def predict(source: str, start: date, end: date, prediction_date: date, plot: bo
         else:
             historic_pop = stats.stock.loc[:end]
 
-            pd.concat([historic_pop, predicted_pop], axis=0).plot(legend=False)
+            pd.concat([historic_pop, predicted_pop], axis=0).plot()
             pp.axvline(end, alpha=0.4)
             pp.axvspan(start, end, alpha=0.1)
             pp.show()

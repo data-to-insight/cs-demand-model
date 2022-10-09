@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 
 import pandas as pd
 
-from csdmpy.constants import AgeBracket, Constants, PlacementType
+from csdmpy.config import Config
 from csdmpy.data.ssda903 import SSDA903TableType
 from csdmpy.datastore import DataFile, DataStore, TableType
 
@@ -19,8 +19,9 @@ class DemandModellingDataContainer:
     merging data to create a single, consistent dataset.
     """
 
-    def __init__(self, datastore: DataStore):
+    def __init__(self, datastore: DataStore, config: Config):
         self.__datastore = datastore
+        self.__config = config
 
         self.__file_info = []
         for file_info in datastore.files:
@@ -180,13 +181,16 @@ class DemandModellingDataContainer:
 
         combined = self._add_ages(combined)
         combined = self._add_age_bins(combined)
-        combined = self._add_related_placement_type(combined, -1, "PLACE_AFTER")
-        combined = self._add_related_placement_type(combined, 1, "PLACE_BEFORE")
-        combined = self._add_placement_categories(combined)
+        combined = self._add_placement_category(combined)
+        combined = self._add_related_placement_type(
+            combined, 1, "placement_type_before"
+        )
+        combined = self._add_related_placement_type(
+            combined, -1, "placement_type_after"
+        )
         return combined
 
-    @staticmethod
-    def _add_ages(combined: pd.DataFrame) -> pd.DataFrame:
+    def _add_ages(self, combined: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates the age of the child at the start and end of the episode and adds them as columns
 
@@ -195,38 +199,39 @@ class DemandModellingDataContainer:
 
         combined["age"] = (
             combined["DECOM"] - combined["DOB"]
-        ).dt.days / Constants.YEAR_IN_DAYS
+        ).dt.days / self.__config.year_in_days
         combined["end_age"] = (
             combined["DEC"] - combined["DOB"]
-        ).dt.days / Constants.YEAR_IN_DAYS
+        ).dt.days / self.__config.year_in_days
         return combined
 
-    @staticmethod
-    def _add_age_bins(combined: pd.DataFrame) -> pd.DataFrame:
+    def _add_age_bins(self, combined: pd.DataFrame) -> pd.DataFrame:
         """
         Adds age bins for the child at the start and end of the episode and adds them as columns
 
         WARNING: This method modifies the dataframe in place.
         """
-        combined["age_bin"] = combined["age"].apply(AgeBracket.bracket_for)
-        combined["end_age_bin"] = combined["end_age"].apply(AgeBracket.bracket_for)
+        AgeBracket = self.__config.AgeBrackets
+        combined["age_bin"] = combined["age"].apply(AgeBracket.bracket_for_age)
+        combined["end_age_bin"] = combined["end_age"].apply(AgeBracket.bracket_for_age)
         return combined
 
-    @staticmethod
     def _add_related_placement_type(
-        combined: pd.DataFrame, offset: int, new_column_name: str
+        self, combined: pd.DataFrame, offset: int, new_column_name: str
     ) -> pd.DataFrame:
         """
-        Adds the related placement type, usually -1 for following, or 1 for preceeding.
+        Adds the related placement type, -1 for following, or 1 for preceeding.
 
         WARNING: This method modifies the dataframe in place.
         """
+        PlacementCategories = self.__config.PlacementCategories
+
         combined = combined.sort_values(["CHILD", "DECOM", "DEC"], na_position="first")
 
         combined[new_column_name] = (
-            combined.groupby("CHILD")["PLACE"]
+            combined.groupby("CHILD")["placement_type"]
             .shift(offset)
-            .fillna(PlacementType.NOT_IN_CARE.name)
+            .fillna(PlacementCategories.NOT_IN_CARE)
         )
 
         offset_mask = combined["CHILD"] == combined["CHILD"].shift(offset)
@@ -234,23 +239,19 @@ class DemandModellingDataContainer:
             offset_mask &= combined["DECOM"] != combined["DEC"].shift(offset)
         else:
             offset_mask &= combined["DEC"] != combined["DECOM"].shift(offset)
-        combined.loc[offset_mask, new_column_name] = PlacementType.NOT_IN_CARE.name
+        combined.loc[offset_mask, new_column_name] = PlacementCategories.NOT_IN_CARE
         return combined
 
-    @staticmethod
-    def _add_placement_categories(combined: pd.DataFrame) -> pd.DataFrame:
+    def _add_placement_category(self, combined: pd.DataFrame) -> pd.DataFrame:
         """
         Adds placement category for
 
         WARNING: This method modifies the dataframe in place.
         """
+        PlacementCategories = self.__config.PlacementCategories
         combined["placement_type"] = combined["PLACE"].apply(
-            lambda x: PlacementType[x].value.value
-        )
-        combined["placement_type_before"] = combined["PLACE_BEFORE"].apply(
-            lambda x: PlacementType[x].value.value
-        )
-        combined["placement_type_after"] = combined["PLACE_AFTER"].apply(
-            lambda x: PlacementType[x].value.value
+            lambda x: PlacementCategories.placement_type_map.get(
+                x, PlacementCategories.OTHER
+            )
         )
         return combined
