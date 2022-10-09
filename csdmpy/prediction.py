@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from functools import cached_property
 
 import pandas as pd
 
@@ -9,50 +8,6 @@ try:
     import tqdm
 except ImportError:
     tqdm = None
-
-
-class ModelFactory:
-    def __init__(
-        self, model: PopulationStats, reference_start: date, reference_end: date
-    ):
-        self.__model = model
-        self.__config = model.config
-        self.__reference_start = reference_start
-        self.__reference_end = reference_end
-
-    def predictor(self, start_date: date) -> "ModelPredictor":
-        # Make sure we have a full set of populations
-        pop = (
-            self.model.stock.loc[[start_date]]
-            .copy(deep=False)
-            .T.reindex(self.__config.states(as_index=True))
-            .fillna(0)[start_date]
-        )
-
-        return ModelPredictor(
-            pop,
-            self.transition_matrix,
-            self.entrants.daily_entry_probability,
-            start_date,
-        )
-
-    @property
-    def model(self) -> PopulationStats:
-        return self.__model
-
-    @cached_property
-    def transition_rates(self) -> pd.DataFrame:
-        return self.__model.transition_rates(
-            self.__reference_start, self.__reference_end
-        )
-
-    @cached_property
-    def transition_matrix(self) -> pd.DataFrame:
-        return self.transition_rates.unstack().fillna(0)
-
-    @cached_property
-    def entrants(self) -> pd.DataFrame:
-        return self.__model.daily_entrants(self.__reference_start, self.__reference_end)
 
 
 class ModelPredictor:
@@ -67,6 +22,19 @@ class ModelPredictor:
         self.__rates_matrix = rates_matrix
         self.__entrants = entrants
         self.__start_date = start_date
+
+    @staticmethod
+    def from_model(model: PopulationStats, reference_start: date, reference_end: date):
+
+        transition_rates = model.transition_rates(reference_start, reference_end)
+        transition_matrix = transition_rates.unstack().fillna(0)
+
+        return ModelPredictor(
+            model.stock_at(reference_end),
+            transition_matrix,
+            model.daily_entrants(reference_start, reference_end),
+            reference_end,
+        )
 
     @property
     def initial_population(self):

@@ -2,9 +2,10 @@ from datetime import date
 
 import click
 import pandas as pd
+from click import style
 from dateutil.relativedelta import relativedelta
 
-from csdmpy import DemandModellingDataContainer, ModelFactory, PopulationStats
+from csdmpy import DemandModellingDataContainer, ModelPredictor, PopulationStats
 from csdmpy.config import Config
 from csdmpy.datastore import fs_datastore
 
@@ -12,6 +13,13 @@ try:
     import matplotlib.pyplot as pp
 except ImportError:
     pp = None
+
+
+def style_prop(value, fg="green", bold=True, **kwargs):
+    if hasattr(value, "strftime"):
+        value = value.strftime("%Y-%m-%d")
+
+    return style(value, fg=fg, bold=bold, **kwargs)
 
 
 def plot_option(*args, help=None, **kwargs):
@@ -67,25 +75,33 @@ def list_files(source: str):
 @click.argument("source")
 @click.option("--start", "-s", type=click.DateTime(formats=["%Y-%m-%d"]))
 @click.option("--end", "-e", type=click.DateTime(formats=["%Y-%m-%d"]))
-def analyse(source: str, start: date, end: date):
+@click.option("--export", type=click.Path(writable=True))
+def analyse(source: str, start: date, end: date, export):
     """
     Opens SOURCE and runs analysis on the data between START and END. SOURCE can be a file or a filesystem URL.
     """
     setup = CliSetup(source, start, end)
     click.echo(
-        f"Running analysis between {setup.start:%Y-%m-%d} and {setup.end:%Y-%m-%d}"
+        f"Running analysis between {style_prop(setup.start)} and {style_prop(setup.end)})"
     )
     click.echo("Transition rates:")
     click.echo(setup.stats.transition_rates(setup.start, setup.end))
 
+    if export:
+        setup.stats.to_excel(export, setup.start, setup.end)
+        click.echo(f"Saved analysis to {style_prop(export)}")
+
 
 @cli.command()
 @click.argument("source")
-@click.option("--start", type=click.DateTime(formats=["%Y-%m-%d"]))
-@click.option("--end", type=click.DateTime(formats=["%Y-%m-%d"]))
+@click.option("--start", "-s", type=click.DateTime(formats=["%Y-%m-%d"]))
+@click.option("--end", "-e", type=click.DateTime(formats=["%Y-%m-%d"]))
 @click.option("--prediction_date", "--pd", type=click.DateTime(formats=["%Y-%m-%d"]))
 @plot_option("--plot", "-p", is_flag=True, help="Plot the results")
-def predict(source: str, start: date, end: date, prediction_date: date, plot: bool):
+@click.option("--export", type=click.Path(writable=True))
+def predict(
+    source: str, start: date, end: date, prediction_date: date, plot: bool, export
+):
     """
     Analyses SOURCE between start and end, and then predicts the population at prediction_date.
     """
@@ -96,16 +112,20 @@ def predict(source: str, start: date, end: date, prediction_date: date, plot: bo
         prediction_date = end + relativedelta(months=12)
 
     click.echo(
-        f"Running analysis between {setup.start:%Y-%m-%d} and {setup.end:%Y-%m-%d} and predicting to {prediction_date:%Y-%m-%d}"
+        f"Running analysis between {style_prop(setup.start)} and {style_prop(setup.end)} "
+        f"and predicting to {style_prop(prediction_date)}"
     )
 
-    fac = ModelFactory(setup.stats, start, end)
-    predictor = fac.predictor(end)
+    predictor = ModelPredictor.from_model(setup.stats, start, end)
     prediction_days = (prediction_date - end).days
     predicted_pop = predictor.predict(prediction_days, progress=True)
 
     click.echo("Predicted population:")
     click.echo(predicted_pop)
+
+    if export:
+        predicted_pop.to_excel(export)
+        click.echo(f"Saved prediction to {style_prop(export)}")
 
     if plot:
         if not pp:

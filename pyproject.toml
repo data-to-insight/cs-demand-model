@@ -20,6 +20,8 @@ matplotlib = { version = "^3.5.2", optional = true }
 tqdm = { version = "^4.64.1", optional = true }
 Flask = { version = "^2.1.2", optional = true }
 Flask-Cors = { version = "^3.0.10", optional = true }
+jupyterlab = { version = "^3.4.8", optional = true }
+openpyxl = {version = "^3.0.10", optional = true}
 
 
 [tool.poetry.dev-dependencies]
@@ -29,8 +31,9 @@ black = "^22.8.0"
 isort = "^5.10.1"
 
 [tool.poetry.extras]
-cli = ["matplotlib", "tqdm"]
+cli = ["matplotlib", "tqdm", "openpyxl"]
 web = ["Flask", "Flask-Cors"]
+jupyter = ["jupyterlab", "openpyxl"]
 
 
 [build-system]

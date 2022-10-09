@@ -65,6 +65,12 @@ class PopulationStats:
 
         return pops
 
+    @lru_cache(maxsize=5)
+    def stock_at(self, start_date):
+        stock = self.stock.loc[[start_date]].T
+        stock.name = start_date
+        return stock
+
     @property
     def transitions(self):
         transitions = self.df.groupby(
@@ -160,7 +166,7 @@ class PopulationStats:
         return merged_rates
 
     @lru_cache(maxsize=5)
-    def daily_entrants(self, start_date: date, end_date: date) -> pd.DataFrame:
+    def daily_entrants(self, start_date: date, end_date: date) -> pd.Series:
         """
         Returns the number of entrants and the daily_probability of entrants for each age bracket and placement type.
         """
@@ -187,4 +193,14 @@ class PopulationStats:
 
         df = df.set_index(["age_bin", "placement_type"])
 
-        return df
+        return df.daily_entry_probability
+
+    def to_excel(self, output_file: str, start_date: date, end_date: date):
+        with pd.ExcelWriter(output_file) as writer:
+            self.stock_at(end_date).to_excel(writer, sheet_name="population")
+            self.transition_rates(start_date, end_date).to_excel(
+                writer, sheet_name="transition_rates"
+            )
+            self.daily_entrants(start_date, end_date).to_excel(
+                writer, sheet_name="daily_entrants"
+            )
