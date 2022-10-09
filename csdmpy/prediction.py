@@ -164,6 +164,6 @@ class ModelPredictor:
             pop.name = self.__start_date + timedelta(days=i + 1)
             predictions.append(pop)
 
-            set_description(f"{pop.name}")
+            set_description(f"{pop.name:%Y-%m}")
 
         return pd.concat(predictions, axis=1).T

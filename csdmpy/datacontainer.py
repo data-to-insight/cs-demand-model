@@ -2,6 +2,8 @@ import csv
 import dataclasses
 import io
 import logging
+from datetime import date
+from functools import cached_property
 from typing import Any, List, Optional
 
 import pandas as pd
@@ -91,7 +93,7 @@ class DemandModellingDataContainer:
             f"Could not find table for year {year} and table type {table_type}"
         )
 
-    def get_combined_year(self, year: int) -> pd.DataFrame:
+    def combined_year(self, year: int) -> pd.DataFrame:
         """
         Returns the combined view for the year consisting of Episodes and Headers
 
@@ -113,7 +115,8 @@ class DemandModellingDataContainer:
 
         return merged
 
-    def get_combined_data(self, combined: pd.DataFrame = None) -> pd.DataFrame:
+    @cached_property
+    def combined_data(self) -> pd.DataFrame:
         """
         Returns the combined view for all years consisting of Episodes and Headers. Runs some sanity checks
         as
@@ -122,15 +125,12 @@ class DemandModellingDataContainer:
                          the values for all years in this container
         :return: A pandas DataFrame containing the combined view
         """
-        if not combined:
-            combined = pd.concat(
-                [
-                    self.get_combined_year(year)
-                    for year in range(self.first_year, self.last_year + 1)
-                ]
-            )
-        else:
-            combined = combined.copy()
+        combined = pd.concat(
+            [
+                self.combined_year(year)
+                for year in range(self.first_year, self.last_year + 1)
+            ]
+        )
 
         # Just do some basic data validation checks
         assert not combined["CHILD"].isna().any()
@@ -165,7 +165,8 @@ class DemandModellingDataContainer:
 
         return combined
 
-    def get_enriched_view(self, combined: pd.DataFrame = None) -> pd.DataFrame:
+    @cached_property
+    def enriched_view(self) -> pd.DataFrame:
         """
         Adds several additional columns to the combined view to support the model calculations.
 
@@ -173,12 +174,7 @@ class DemandModellingDataContainer:
         * age_end - the age of the child at the end of the episode
 
         """
-
-        if not combined:
-            combined = self.get_combined_data()
-        else:
-            combined = combined.copy()
-
+        combined = self.combined_data
         combined = self._add_ages(combined)
         combined = self._add_age_bins(combined)
         combined = self._add_placement_category(combined)
@@ -190,13 +186,20 @@ class DemandModellingDataContainer:
         )
         return combined
 
+    @cached_property
+    def start_date(self) -> date:
+        return self.combined_data[["DECOM", "DEC"]].min().min()
+
+    @cached_property
+    def end_date(self) -> date:
+        return self.combined_data[["DECOM", "DEC"]].max().max()
+
     def _add_ages(self, combined: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates the age of the child at the start and end of the episode and adds them as columns
 
         WARNING: This method modifies the dataframe in place.
         """
-
         combined["age"] = (
             combined["DECOM"] - combined["DOB"]
         ).dt.days / self.__config.year_in_days

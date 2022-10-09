@@ -15,75 +15,57 @@ data to be able to build a model for the system behaviour.
 
 Model components:
 
-* Ingest - takes the SSDA903 files and converts it to a longitudinal dataset surfacing at the experience of individual children.
-* Model - takes the longitudinal dataset and builds a statistical model of the system behaviour.
+* [Configuration](./docs/configuration.ipynb) - How to configure the tool
+* [File Loader](./docs/file-loader.ipynb) - How to load files into the tool
+* [Data Container](./docs/data-container.ipynb) - How we enrich and access the data from the model
+* [Data Analysis](./docs/data-analysis.ipynb) - The key calculations required by the predictive model
 * Predictor - takes the model and uses it to predict the number of children in care at a given point in time.
 
 The components are designed to be re-usable and extensible. 
 
 In addition there are a couple of abstraction layers to handle loading of files in different environments. 
 
-## Components
+## Quickstart
 
-Let's look at each of the components in more detail. The first problem is to load
-data. The data is in the form of SSDA903 files, which are a set of tabular files 
-for each reporting year. We currently only support CSV files, but the API
-is designed to be easily extensible to other file formats.
+Want to get started straight away? You can install from the GitHub repo and run from the command line:
 
+```bash
 
-### File handling
+pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=csdmpy[cli]'
 
-File handing belongs in the `csdmpy.datastore` module. 
-The key part of this is the `DataStore` class, which 
-has methods for iterating over the set of provided files, 
-and to open those files. It also has a method to load the data as
-a dataframe, but this doesn't seem right so is likely to change. 
+```
 
-The purpose of this library is to make sure we can consistently
-load data in different environments. The most important of which is
-to pass on any required metadata about the files. However,
-as mentioned, I'm not sure the metadata is that important, so
-there may be additional scope for improvement.
+The part after the # is optional, but will install a few extra dependencies to make the experience better when 
+running from the command line.
 
-The important thing is that the different files for each year is combined correctly,
-so we need to know the year of each file. How to provide this information depends
-on the datastore implementation.
+You can now view the command line options by running:
 
-TODO: Review the datastore API
+```bash
+python -m csdmpy
+````
 
-### Data Container
+For example, you can run a quick predictive model using a sample dataset with:
 
-The purpose of the data container is to merge the different files to
-create a consolidated system view. The data container merges the
-individual tables, deduplicates the data, and then adds categories
-used for the statistical model. 
+```bash
+python -m csdmpy predict sample://v1.zip
+```
 
-Most importantly it calculates child ages, and groups these into age 
-categories as defined by `AgeBracket`. This is currently an enum, but
-in future this may be user configurable. 
+In this case we have used a sample dataset, but you can also use a local folder by specifying the path to the folder:
 
-The enrichment process also looks at the placement types and categorises
-these according to the `PlacementType` enum, as well as a 
-NOT_IN_CARE category that children can move in and out of.
+```bash
+python -m csdmpy predict path/to/my/folder
+```
 
-TODO: Add Jupyter notebook showing the data container in action and
-explaining the transitions.
+The folder currently needs to have quite a specific structure with sub-folders for each year. You can make
+sure your folder is read correctly by running:
 
-### Model
+```bash
+ python -m csdmpy list-files sample://v1.zip 
+```
+(obviously replacing the path with your own)
 
-The model is a statistical model that is built from the data container.
+You can get more information about passing options to the command line tool by adding `--help` after the command, e.g.
 
-### Predictor
-
-The predictor uses the model to predict the number of children in care
-
-## Usage
-
-The model can be used as a library, as a command line tool,
-or as part of the webapp.
-
-
-
-
-
-'
+```bash
+python -m csdmpy analyse --help
+```
