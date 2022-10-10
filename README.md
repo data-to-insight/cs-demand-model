@@ -19,7 +19,7 @@ Model components:
 * [File Loader](./docs/file-loader.ipynb) - How to load files into the tool
 * [Data Container](./docs/data-container.ipynb) - How we enrich and access the data from the model
 * [Data Analysis](./docs/data-analysis.ipynb) - The key calculations required by the predictive model
-* Predictor - takes the model and uses it to predict the number of children in care at a given point in time.
+* [Predictor](./docs/predict.ipynb) - takes the model and uses it to predict the number of children in care at a given point in time.
 
 The components are designed to be re-usable and extensible. 
 
@@ -69,3 +69,18 @@ You can get more information about passing options to the command line tool by a
 ```bash
 python -m csdmpy analyse --help
 ```
+
+## Launching with Jupyter
+
+You can also launch the model with Jupyter. Install the library with the jupyter extension:
+
+```bash 
+pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=csdmpy[jupyter]'
+```
+
+Then launch Jupyter:
+
+```bash
+jupyter-labs
+```
+(or `jupyter notebook` if you prefer)
