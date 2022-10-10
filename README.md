@@ -1,5 +1,7 @@
 # Children's Social Care Demand Model
 
+[![Binder](https://mybinder.org/badge_logo.svg)][launch]
+
 This is the Python implementation of the Children's Social Care Demand Model.
 
 It can be used as a library, as a command line tool, or as part of a web application. 
@@ -84,3 +86,13 @@ Then launch Jupyter:
 jupyter-labs
 ```
 (or `jupyter notebook` if you prefer)
+
+## Launching on Binder
+
+You can also launch the model on [Binder][binder]. 
+[Click to launch][launch] the [sample repository][sample-repo] on binder.
+
+
+[launch]: https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/csdmpy-binder/HEAD?labpath=start-here.ipynb
+[binder]: https://mybinder.org
+[sample-repo]: https://github.com/SocialFinanceDigitalLabs/csdmpy-binder
