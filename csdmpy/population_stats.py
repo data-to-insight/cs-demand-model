@@ -67,7 +67,7 @@ class PopulationStats:
 
     @lru_cache(maxsize=5)
     def stock_at(self, start_date):
-        stock = self.stock.loc[[start_date]].T
+        stock = self.stock.loc[start_date].T
         stock.name = start_date
         return stock
 
