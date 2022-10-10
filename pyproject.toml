@@ -33,7 +33,7 @@ isort = "^5.10.1"
 [tool.poetry.extras]
 cli = ["matplotlib", "tqdm", "openpyxl"]
 web = ["Flask", "Flask-Cors"]
-jupyter = ["jupyterlab", "openpyxl"]
+jupyter = ["jupyterlab", "matplotlib", "tqdm", "openpyxl"]
 
 
 [build-system]
