@@ -5,9 +5,13 @@ import pandas as pd
 from click import style
 from dateutil.relativedelta import relativedelta
 
-from csdmpy import DemandModellingDataContainer, ModelPredictor, PopulationStats
-from csdmpy.config import Config
-from csdmpy.datastore import fs_datastore
+from cs_demand_model import (
+    DemandModellingDataContainer,
+    ModelPredictor,
+    PopulationStats,
+)
+from cs_demand_model.config import Config
+from cs_demand_model.datastore import fs_datastore
 
 try:
     import matplotlib.pyplot as pp

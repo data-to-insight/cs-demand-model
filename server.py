@@ -5,9 +5,9 @@ from dateutil.parser import parse
 from flask import Flask, render_template, request
 from flask_cors import CORS
 
-from csdmpy.api import ApiSession
-from csdmpy.classy import ModelParams
-from csdmpy.utils import ezfiles
+from cs_demand_model.api import ApiSession
+from cs_demand_model.classy import ModelParams
+from cs_demand_model.utils import ezfiles
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})

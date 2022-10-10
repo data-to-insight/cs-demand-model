@@ -8,9 +8,9 @@ from typing import Any, List, Optional
 
 import pandas as pd
 
-from csdmpy.config import Config
-from csdmpy.data.ssda903 import SSDA903TableType
-from csdmpy.datastore import DataFile, DataStore, TableType
+from cs_demand_model.config import Config
+from cs_demand_model.data.ssda903 import SSDA903TableType
+from cs_demand_model.datastore import DataFile, DataStore, TableType
 
 log = logging.getLogger(__name__)
 

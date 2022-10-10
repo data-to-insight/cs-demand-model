@@ -3,11 +3,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-import csdmpy.fixtures.config
-from csdmpy.config import Config
-from csdmpy.config._age_brackets import build_age_brackets
+import cs_demand_model.fixtures.config
+from cs_demand_model.config import Config
+from cs_demand_model.config._age_brackets import build_age_brackets
 
-fixtures_file = Path(csdmpy.fixtures.config.__file__).parent / "standard-v1.yaml"
+fixtures_file = (
+    Path(cs_demand_model.fixtures.config.__file__).parent / "standard-v1.yaml"
+)
 
 
 @pytest.fixture

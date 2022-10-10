@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from csdmpy.population_stats import PopulationStats
+from cs_demand_model.population_stats import PopulationStats
 
 try:
     import tqdm

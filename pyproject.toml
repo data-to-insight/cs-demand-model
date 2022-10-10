@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "csdmpy"
+name = "cs-demand-model"
 version = "0.1.0"
 description = "Python port of Social Finance's children's social care demand model"
 authors = ["dezog", "tab1tha", "kws"]
 packages = [
-    { include = "csdmpy" },
-    { include = "csdmpy_fakedata" },
+    { include = "cs_demand_model" },
+    { include = "cs_demand_model_samples" },
 ]
 
 [tool.poetry.dependencies]

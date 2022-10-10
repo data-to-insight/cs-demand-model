@@ -1,4 +1,4 @@
-from csdmpy.datastore import TableType
+from cs_demand_model.datastore import TableType
 
 
 class Episodes:

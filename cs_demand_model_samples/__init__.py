@@ -7,7 +7,7 @@ class __FSProxy:
 
     @cached_property
     def datastore(self):
-        from csdmpy.datastore import fs_datastore
+        from cs_demand_model.datastore import fs_datastore
 
         return fs_datastore(self.__path)
 

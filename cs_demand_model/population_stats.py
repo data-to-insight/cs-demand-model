@@ -4,7 +4,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from csdmpy.config import Config
+from cs_demand_model.config import Config
 
 
 class PopulationStats:

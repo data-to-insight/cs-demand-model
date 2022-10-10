@@ -43,33 +43,33 @@ running from the command line.
 You can now view the command line options by running:
 
 ```bash
-python -m csdmpy
+python -m cs_demand_model
 ````
 
 For example, you can run a quick predictive model using a sample dataset with:
 
 ```bash
-python -m csdmpy predict sample://v1.zip
+python -m cs_demand_model predict sample://v1.zip
 ```
 
 In this case we have used a sample dataset, but you can also use a local folder by specifying the path to the folder:
 
 ```bash
-python -m csdmpy predict path/to/my/folder
+python -m cs_demand_model predict path/to/my/folder
 ```
 
 The folder currently needs to have quite a specific structure with sub-folders for each year. You can make
 sure your folder is read correctly by running:
 
 ```bash
- python -m csdmpy list-files sample://v1.zip 
+ python -m cs_demand_model list-files sample://v1.zip 
 ```
 (obviously replacing the path with your own)
 
 You can get more information about passing options to the command line tool by adding `--help` after the command, e.g.
 
 ```bash
-python -m csdmpy analyse --help
+python -m cs_demand_model analyse --help
 ```
 
 ## Launching with Jupyter
@@ -77,7 +77,7 @@ python -m csdmpy analyse --help
 You can also launch the model with Jupyter. Install the library with the jupyter extension:
 
 ```bash 
-pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=csdmpy[jupyter]'
+pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=cs-demand-model[jupyter]'
 ```
 
 Then launch Jupyter:
