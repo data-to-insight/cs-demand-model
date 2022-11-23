@@ -5,9 +5,9 @@ from .population_stats import PopulationStats
 from .prediction import ModelPredictor
 
 __all__ = [
-    DemandModellingDataContainer,
-    PopulationStats,
-    ModelPredictor,
-    Config,
-    fs_datastore,
+    "DemandModellingDataContainer",
+    "PopulationStats",
+    "ModelPredictor",
+    "Config",
+    "fs_datastore",
 ]

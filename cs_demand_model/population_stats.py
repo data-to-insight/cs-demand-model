@@ -17,7 +17,7 @@ class PopulationStats:
         return self.__df
 
     @property
-    def config(self):
+    def config(self) -> Config:
         return self.__config
 
     @property
