@@ -23,6 +23,7 @@ Flask-Cors = { version = "^3.0.10", optional = true }
 jupyterlab = { version = "^3.4.8", optional = true }
 openpyxl = {version = "^3.0.10", optional = true}
 plotly = {version = "^5.11.0", optional = true}
+rpc-wrap = {extras = ["cli"], version = "^0.1.0"}
 
 
 [tool.poetry.dev-dependencies]
