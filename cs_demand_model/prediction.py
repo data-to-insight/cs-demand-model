@@ -2,7 +2,6 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from cs_demand_model.config import Config
 from cs_demand_model.population_stats import PopulationStats
 
 try:

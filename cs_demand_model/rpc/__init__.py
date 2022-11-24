@@ -2,10 +2,15 @@ import json
 import tempfile
 import zipfile
 from datetime import date
+from io import BytesIO
+from math import ceil
 from pathlib import Path
 from typing import Iterable, List
 
 import plotly.express as px
+import plotly.graph_objects as go
+from dateutil.parser import parse as parse_date
+from plotly.subplots import make_subplots
 from rpc_wrap import RpcApp
 
 from cs_demand_model import (
@@ -27,6 +32,12 @@ class DemandModellingSession:
         self.uploads_path.mkdir(parents=True, exist_ok=True)
 
         self.config = Config()
+        self.colors = {
+            self.config.PlacementCategories.FOSTERING: dict(color="blue"),
+            self.config.PlacementCategories.RESIDENTIAL: dict(color="green"),
+            self.config.PlacementCategories.SUPPORTED: dict(color="red"),
+            self.config.PlacementCategories.OTHER: dict(color="orange"),
+        }
 
         self.__datastore = None
         self.__datacontainer = None
@@ -52,7 +63,8 @@ class DemandModellingSession:
         self.datastore_invalidate()
 
     def add_zip_file(self, file):
-        with zipfile.ZipFile(file, "r") as zip_ref:
+        bytes = BytesIO(file.read())
+        with zipfile.ZipFile(bytes, "r") as zip_ref:
             zip_ref.extractall(self.uploads_path)
 
     def delete_files(self, names: Iterable[str]):
@@ -146,10 +158,66 @@ def population_stats():
 
 
 @app.call
-def stock():
+def predict(
+    history_start,
+    history_end,
+    reference_start,
+    reference_end,
+    forecast_end,
+    step_days,
+):
+    reference_start = parse_date(reference_start)
+    reference_end = parse_date(reference_end)
+    forecast_end = parse_date(forecast_end)
+
     stats = dm_session.population_stats
-    stock_by_type = stats.stock.fillna(0).groupby(level=1, axis=1).sum()
-    fig = px.scatter(stock_by_type)
+    predictor = ModelPredictor.from_model(stats, reference_start, reference_end)
+
+    steps = (forecast_end - reference_end).days / step_days
+    steps = ceil(steps)
+    predicted_pop = predictor.predict(steps, step_days=step_days)
+    stock, predicted_pop = stats.stock.align(predicted_pop, axis=1)
+
+    stock_by_type = stock.fillna(0).groupby(level=1, axis=1).sum()
+    pred_by_type = predicted_pop.fillna(0).groupby(level=1, axis=1).sum()
+
+    fig = make_subplots()
+    for cat, col in dm_session.colors.items():
+        fig.add_trace(
+            go.Scatter(
+                x=stock_by_type.index,
+                y=stock_by_type[cat],
+                mode="lines",
+                name=cat.label,
+                line=col,
+            )
+        )
+
+    for cat, col in dm_session.colors.items():
+        fig.add_trace(
+            go.Scatter(
+                x=pred_by_type.index,
+                y=pred_by_type[cat],
+                mode="lines",
+                showlegend=False,
+                line=dict(**col, dash="dash"),
+            )
+        )
+
+    fig.add_vline(x=reference_end, line_color=px.colors.qualitative.D3[0])
+    fig.add_vrect(
+        x0=reference_start,
+        x1=reference_end,
+        line_width=0,
+        fillcolor=px.colors.qualitative.D3[0],
+        opacity=0.2,
+    )
+
+    fig.update_layout(
+        yaxis_title="Child Count",
+        xaxis_title="Date",
+    )
+
     return json.loads(fig.to_json())
 
 
