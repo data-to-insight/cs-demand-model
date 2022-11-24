@@ -1,7 +1,11 @@
+import json
 import tempfile
+import zipfile
+from datetime import date
 from pathlib import Path
-from typing import Iterable, List, Mapping
+from typing import Iterable, List
 
+import plotly.express as px
 from rpc_wrap import RpcApp
 
 from cs_demand_model import (
@@ -38,11 +42,18 @@ class DemandModellingSession:
         for record in files:
             year = record["year"]
             file = record["file"]
-            folder_path = self.uploads_path / year
-            folder_path.mkdir(parents=True, exist_ok=True)
-            with open(folder_path / file.filename, "wb") as f:
-                f.write(file.read())
+            if file.content_type == "application/zip":
+                self.add_zip_file(file)
+            else:
+                folder_path = self.uploads_path / year
+                folder_path.mkdir(parents=True, exist_ok=True)
+                with open(folder_path / file.filename, "wb") as f:
+                    f.write(file.read())
         self.datastore_invalidate()
+
+    def add_zip_file(self, file):
+        with zipfile.ZipFile(file, "r") as zip_ref:
+            zip_ref.extractall(self.uploads_path)
 
     def delete_files(self, names: Iterable[str]):
         for name in names:
@@ -52,6 +63,7 @@ class DemandModellingSession:
     def datastore(self):
         if self.__datastore is None:
             self.__datastore = fs_datastore(self.uploads_path.as_posix())
+        print("Returning datastore", self.__datastore)
         return self.__datastore
 
     def datastore_invalidate(self):
@@ -64,6 +76,7 @@ class DemandModellingSession:
             self.__datacontainer = DemandModellingDataContainer(
                 self.datastore, self.config
             )
+        print("Returning datacontainer", self.__datacontainer)
         return self.__datacontainer
 
     def data_container_invalidate(self):
@@ -76,6 +89,7 @@ class DemandModellingSession:
             self.__population_stats = PopulationStats(
                 self.data_container.enriched_view, self.config
             )
+        print("Returning population stats", self.__population_stats)
         return self.__population_stats
 
     def population_stats_invalidate(self):
@@ -124,8 +138,20 @@ def delete_files(names: Iterable[str]) -> List[str]:
 @app.call
 def population_stats():
     stats = dm_session.population_stats
-
+    stock = stats.stock
     return {
-        "min_date": stats.stock.index.min(),
-        "max_date": stats.stock.index.max(),
+        "minDate": _to_date(stock.index.min()),
+        "maxDate": _to_date(stock.index.max()),
     }
+
+
+@app.call
+def stock():
+    stats = dm_session.population_stats
+    stock_by_type = stats.stock.fillna(0).groupby(level=1, axis=1).sum()
+    fig = px.scatter(stock_by_type)
+    return json.loads(fig.to_json())
+
+
+def _to_date(value: date):
+    return value.strftime("%Y-%m-%d")
