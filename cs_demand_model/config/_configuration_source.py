@@ -35,6 +35,10 @@ class ConfigurationSource:
         return self._config_config["PlacementCategories"]
 
     @property
+    def costs(self):
+        return self._config_config["costs"]
+
+    @property
     def year_in_days(self):
         return self._config_config["YearInDays"]
 

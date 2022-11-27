@@ -4,13 +4,11 @@ from typing import Callable, NamedTuple
 import pandas as pd
 import yaml
 
-from cs_demand_model.config._age_brackets import AgeBrackets, build_age_brackets
-from cs_demand_model.config._configuration_source import ConfigurationSource
-from cs_demand_model.config._placement_categories import (
-    PlacementCategories,
-    build_placement_categories,
-)
-from cs_demand_model.fixtures import config as config_fixtures
+from ..fixtures import config as config_fixtures
+from ._age_brackets import AgeBrackets, build_age_brackets
+from ._configuration_source import ConfigurationSource
+from ._costs import Costs
+from ._placement_categories import PlacementCategories, build_placement_categories
 
 DEFAULT_CONFIG_PATH = Path(config_fixtures.__file__).parent / "standard-v1.yaml"
 
@@ -68,10 +66,15 @@ class Config(metaclass=ConfigMeta):
         self._age_brackets = build_age_brackets(
             self._config.age_brackets, self._placements_categories
         )
+        self._costs = Costs(self)
 
     @property
     def config(self):
         return self._config
+
+    @property
+    def costs(self):
+        return self._costs
 
     @property
     def AgeBrackets(self) -> AgeBrackets:
