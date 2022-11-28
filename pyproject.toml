@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cs-demand-model"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python port of Social Finance's children's social care demand model"
 authors = ["dezog", "tab1tha", "kws"]
 packages = [
@@ -23,7 +23,7 @@ Flask-Cors = { version = "^3.0.10", optional = true }
 jupyterlab = { version = "^3.4.8", optional = true }
 openpyxl = {version = "^3.0.10", optional = true}
 plotly = {version = "^5.11.0", optional = true}
-rpc-wrap = {extras = ["cli"], version = "^0.2.0"}
+rpc-wrap = {extras = ["cli"], version = "^0.3.0"}
 
 
 [tool.poetry.dev-dependencies]
@@ -36,6 +36,7 @@ isort = "^5.10.1"
 cli = ["matplotlib", "tqdm", "openpyxl"]
 web = ["Flask", "Flask-Cors"]
 jupyter = ["jupyterlab", "matplotlib", "tqdm", "openpyxl", "plotly"]
+pyodide = ["openpyxl", "plotly"]
 
 
 [build-system]
