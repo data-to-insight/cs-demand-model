@@ -1,7 +1,10 @@
+import inspect
 from datetime import date
+from functools import lru_cache
 from math import ceil
 from typing import Optional
 
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 from cs_demand_model import (
@@ -11,11 +14,48 @@ from cs_demand_model import (
     PopulationStats,
 )
 from cs_demand_model.datastore import DataStore
+from cs_demand_model.rpc import charts
+from cs_demand_model.rpc.t2.components import (
+    BoxPage,
+    Button,
+    ButtonBar,
+    Chart,
+    Paragraph,
+    SidebarPage,
+)
 from cs_demand_model.rpc.util import parse_date
 from cs_demand_model_samples import V1
 
 
-class DemandModellingSession:
+def state_property(*dec_args, **dec_kwargs):
+    def decorator(func):
+        signature = inspect.signature(func)
+        param_list = list(signature.parameters.values())[1:]
+
+        if dec_kwargs.get("cache", 0):
+            func = lru_cache(maxsize=int(dec_kwargs["cache"]))(func)
+
+        def wrapper(state):
+            args = []
+            for param in param_list:
+                state_value = getattr(state, param.name)
+                if state_value is None:
+                    return None
+                args.append(state_value)
+            return func(state, *args)
+
+        return property(wrapper)
+
+    if len(dec_args) == 1 and not dec_kwargs and callable(dec_args[0]):
+        return decorator(dec_args[0])
+    else:
+        return decorator
+
+
+class DemandModellingState:
+    datastore: DataStore = None
+    step_days = 90
+
     def __init__(self):
         self.config = Config()
         self.colors = {
@@ -24,275 +64,146 @@ class DemandModellingSession:
             self.config.PlacementCategories.SUPPORTED: dict(color="red"),
             self.config.PlacementCategories.OTHER: dict(color="orange"),
         }
-        self.__datastore = None
-        self.__datacontainer = None
-        self.__population_stats = None
-        self.__prediction = None
-
-
-class DataStoreState:
-    """
-    The datastore is responsible for storing files and calculating the combined view
-    """
-
-    def __init__(self, state: "DemandModellingState"):
-        self.__state = state
-        self.__config = Config()
-        self.__datastore: Optional[DataStore] = None
-        self.__datacontainer = None
-        self.__population_stats = None
-
-    @property
-    def config(self) -> Config:
-        return self.__config
-
-    @property
-    def datastore(self) -> DataStore:
-        return self.__datastore
-
-    @datastore.setter
-    def datastore(self, value: DataStore):
-        self.__datastore = value
-        self.__datacontainer = None
-        self.__population_stats = None
-
-    @property
-    def datacontainer(self) -> DemandModellingDataContainer:
-        if not self.__datacontainer:
-            self.calculate()
-        return self.__datacontainer
-
-    @property
-    def population_stats(self) -> PopulationStats:
-        if not self.__population_stats:
-            self.calculate()
-        return self.__population_stats
-
-    def calculate(self):
-        if self.datastore:
-            self.__datacontainer = DemandModellingDataContainer(
-                self.datastore, self.config
-            )
-            self.__population_stats = PopulationStats(
-                self.__datacontainer.enriched_view, self.config
-            )
-
-
-class AnalysisState:
-    """
-    The analysis is responsible for calculating the data required for a prediction.
-    """
-
-    def __init__(self, state: "DemandModellingState"):
-        self.__state = state
-
         self.__start_date: Optional[date] = None
         self.__end_date: Optional[date] = None
+        self.__prediction_end_date: Optional[date] = None
         self.__predictor: Optional[ModelPredictor] = None
 
-    def defaults(self):
-        if self.__state.datastore.population_stats:
-            self.__end_date = (
-                self.__state.datastore.population_stats.stock.index.max().date()
-            )
-            self.__start_date = self.__end_date - relativedelta(years=1)
+    @state_property(cache=1)
+    def datacontainer(
+        self, config: Config, datastore: DataStore
+    ) -> DemandModellingDataContainer:
+        return DemandModellingDataContainer(datastore, config)
+
+    @state_property(cache=1)
+    def population_stats(
+        self, config: Config, datacontainer: DemandModellingDataContainer
+    ) -> PopulationStats:
+        return PopulationStats(datacontainer.enriched_view, config)
+
+    @state_property(cache=1)
+    def date_defaults(self, population_stats: PopulationStats):
+        end_date = population_stats.stock.index.max().date()
+        return dict(
+            start_date=end_date - relativedelta(years=1),
+            end_date=end_date,
+            prediction_end_date=end_date + relativedelta(months=18),
+        )
 
     @property
     def start_date(self) -> date:
-        if self.__start_date is None:
-            self.defaults()
-        return self.__start_date
+        return self.__start_date or self.date_defaults["start_date"]
 
     @start_date.setter
     def start_date(self, value: date):
         self.__start_date = value
-        self.__set_predictor(None)
 
     @property
     def end_date(self) -> date:
-        if self.__end_date is None:
-            self.defaults()
-        return self.__end_date
+        return self.__end_date or self.date_defaults["end_date"]
 
     @end_date.setter
     def end_date(self, value: date):
         self.__end_date = value
-        self.__set_predictor(None)
-
-    @property
-    def predictor(self):
-        if self.__predictor is None and self.__state.datastore.population_stats:
-            self.__set_predictor(
-                ModelPredictor.from_model(
-                    self.__state.datastore.population_stats,
-                    self.start_date,
-                    self.end_date,
-                )
-            )
-        return self.__predictor
-
-    def __set_predictor(self, value: Optional[ModelPredictor]):
-        self.__predictor = value
-        self.__state.prediction.clear()
-
-
-class PredictionState:
-    def __init__(self, state: "DemandModellingState"):
-        self.__state = state
-
-        self.__step_days = 90
-        self.__prediction_end_date: Optional[date] = None
-        self.__prediction = None
-
-    @property
-    def step_days(self):
-        return self.__step_days
-
-    @step_days.setter
-    def step_days(self, value):
-        self.__step_days = value
-        self.__set_prediction(None)
 
     @property
     def prediction_end_date(self) -> date:
-        if not self.__prediction_end_date:
-            self.defaults()
-        return self.__prediction_end_date
+        return self.__prediction_end_date or self.date_defaults["prediction_end_date"]
 
     @prediction_end_date.setter
     def prediction_end_date(self, value: date):
         self.__prediction_end_date = value
-        self.__set_prediction(None)
+
+    @state_property(cache=1)
+    def predictor(self, population_stats, start_date, end_date) -> ModelPredictor:
+        return ModelPredictor.from_model(population_stats, start_date, end_date)
 
     @property
     def steps(self) -> int:
-        return ceil(
-            (self.prediction_end_date - self.__state.analysis.end_date).days
-            / self.step_days
-        )
+        return ceil((self.prediction_end_date - self.end_date).days / self.step_days)
 
-    def defaults(self):
-        if not self.__prediction_end_date:
-            self.__prediction_end_date = self.__state.analysis.end_date + relativedelta(
-                months=18
-            )
-
-    def clear(self):
-        self.__set_prediction(None)
-
-    @property
-    def prediction(self):
-        if self.__prediction is None and self.__state.analysis.predictor:
-            self.__set_prediction(
-                self.__state.analysis.predictor.predict(self.steps, self.step_days)
-            )
-        return self.__prediction
-
-    def __set_prediction(self, prediction):
-        self.__prediction = prediction
-
-
-class DemandModellingState:
-    def __init__(self):
-        self.datastore = DataStoreState(self)
-        self.analysis = AnalysisState(self)
-        self.prediction = PredictionState(self)
+    @state_property(cache=1)
+    def prediction(
+        self, predictor: ModelPredictor, steps: int, step_days: int
+    ) -> pd.DataFrame:
+        return predictor.predict(steps, step_days)
 
 
 class DataStoreView:
-    def init(self, state: DemandModellingState):
-        """
-        This is called before each render, so that we can update the state if necessary.
-        """
-        return state
-
     def action(self, action, state: DemandModellingState, data):
         """
         This is called whenever an action is triggered for this view
         """
         if action == "use_sample_files":
-            state.datastore.datastore = V1.datastore
+            state.datastore = V1.datastore
+
+    def render(self, state: DemandModellingState):
+        return BoxPage(
+            Paragraph(
+                "This tool automatically forecasts demand for children’s services "
+                "placements so that commissioners can conduct sufficiency analyses, "
+                "secure appropriate budgets for services and demonstrate the business "
+                "case for a new or changed service."
+            ),
+            Paragraph(
+                "Load your local authority’s historic statutory return files on looked "
+                "after children (SSDA903 files) to quickly see estimates of future "
+                "demand for residential, fostering and supported accommodation "
+                "placements."
+            ),
+            Paragraph(
+                "Adjust population and cost parameters to model changes you are "
+                "considering, such as the creation of in-house provision, or a "
+                "step-down service."
+            ),
+            Paragraph(
+                "Note: You do not need data sharing agreements to use this tool. "
+                "Even though it opens in your web-browser, the tool runs offline, "
+                "locally on your computer so that none of the data you enter leaves "
+                "your device."
+            ),
+            Paragraph(
+                "Drop your SSDA903 return files in below to begin generating forecasts!"
+            ),
+            ButtonBar(Button("Use sample files", action="use_sample_files")),
+        )
+
+
+class ChartsView:
+    def action(self, action, state: DemandModellingState, data):
+        if action == "update":
+            state.start_date = parse_date(data["start_date"])
+            state.end_date = parse_date(data["end_date"])
         return state
 
-    def is_complete(self, state: DemandModellingState):
-        """
-        This is called prior to rendering the view to determine if this view is complete.
-        """
-        return state.datastore.datastore is not None
-
-    def render(self):
-        return {
-            "layout": "main",
-            "components": [
-                {
-                    "type": "paragraph",
-                    "text": "This tool automatically forecasts demand for children’s services "
-                    "placements so that commissioners can conduct sufficiency analyses, "
-                    "secure appropriate budgets for services and demonstrate the business "
-                    "case for a new or changed service.",
-                },
-                {
-                    "type": "paragraph",
-                    "text": "Load your local authority’s historic statutory return files on looked "
-                    "after children (SSDA903 files) to quickly see estimates of future "
-                    "demand for residential, fostering and supported accommodation "
-                    "placements.",
-                },
-                {
-                    "type": "paragraph",
-                    "text": "Adjust population and cost parameters to model changes you are "
-                    "considering, such as the creation of in-house provision, or a "
-                    "step-down service.",
-                },
-                {
-                    "type": "paragraph",
-                    "text": "Note: You do not need data sharing agreements to use this tool. "
-                    "Even though it opens in your web-browser, the tool runs offline, "
-                    "locally on your computer so that none of the data you enter leaves "
-                    "your device.",
-                },
-                {
-                    "type": "paragraph",
-                    "text": "Drop your SSDA903 return files in below to begin generating forecasts!",
-                },
-                {
-                    "type": "button",
-                    "text": "Use Sample Files",
-                    "action": "use_sample_files",
-                },
+    def render(self, state: DemandModellingState):
+        return SidebarPage(
+            sidebar=[],
+            main=[
+                Paragraph(
+                    "Drop your SSDA903 return files in below to begin generating forecasts!"
+                ),
+                Chart(state, charts.stock_chart),
             ],
+        )
+
+
+class T2DemandModellingSession:
+    def __init__(self):
+        self.state = DemandModellingState()
+        self.views = {
+            "datastore": DataStoreView(),
+            "charts": ChartsView(),
         }
 
+    @property
+    def current_view(self):
+        if self.state.datastore is None:
+            return self.views["datastore"]
+        else:
+            return self.views["charts"]
 
-class DatesView:
-    def init(self, state: DemandModellingState):
-        """
-        This is called before each render, so that we can update the state if necessary.
-        """
-        return state
-
-    def action(self, action, state: DemandModellingState, data):
-        """
-        This is called whenever an action is triggered for this view
-        """
-        if action == "update":
-            state.analysis.start_date = parse_date(data["start_date"])
-            state.analysis.end_date = parse_date(data["end_date"])
-        return state
-
-
-class PredictionView:
-    def init(self, state: DemandModellingState):
-        """
-        This is called before each render, so that we can update the state if necessary.
-        """
-        return state
-
-    def action(self, action, state: DemandModellingState, data):
-        """
-        This is called whenever an action is triggered for this view
-        """
-        if action == "update":
-            state.analysis.start_date = parse_date(data["start_date"])
-            state.analysis.end_date = parse_date(data["end_date"])
-        return state
+    def action(self, action, data=None):
+        if action != "init":
+            self.current_view.action(action, self.state, data)
+        return dict(view=self.current_view.render(self.state), state={})
