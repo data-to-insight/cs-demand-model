@@ -1,4 +1,4 @@
-import json
+import hashlib
 import uuid
 from typing import Callable
 
@@ -10,7 +10,11 @@ class Component:
     def __init__(self, id=None, type_name=None):
         if id is None:
             id = uuid.uuid4().hex
-        self.id = id
+        try:
+            self.id = id
+        except AttributeError:
+            # If we override the ID property in the component
+            pass
 
         if type_name is None:
             type_name = type(self).__name__.lower()
@@ -47,8 +51,8 @@ class BoxPage(Component):
 
 
 class SidebarPage(Component):
-    def __init__(self, sidebar: list[Component], main: list[Component]):
-        super().__init__()
+    def __init__(self, sidebar: list[Component], main: list[Component], id: str = None):
+        super().__init__(id=id)
         self.sidebar = sidebar
         self.main = main
 
@@ -67,5 +71,37 @@ class Chart(Component):
     def chart(self):
         chart = self.__renderer(self.__state)
         if isinstance(chart, go.Figure):
-            chart = plotly.io.to_json(chart, pretty=True)
+            chart = plotly.io.to_json(chart, pretty=False)
         return chart
+
+    @property
+    def id(self):
+        digest = hashlib.sha256()
+        digest.update(self.chart.encode())
+        return digest.hexdigest()
+
+
+class Expando(Component):
+    def __init__(self, *components: Component, title: str, id: str = None):
+        super().__init__(id=id)
+        self.title = title
+        self.components = components
+
+
+class DateSelect(Component):
+    def __init__(self, id: str, title: str):
+        super().__init__(id=id)
+        self.title = title
+
+
+class TextField(Component):
+    def __init__(self, id: str, title: str, input_props: dict = None):
+        super().__init__(id=id)
+        self.title = title
+        self.input_props = input_props or {}
+
+
+class Fragment(Component):
+    def __init__(self, *components: Component):
+        super().__init__(type_name="fragment")
+        self.components = components

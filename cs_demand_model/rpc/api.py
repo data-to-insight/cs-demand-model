@@ -1,32 +1,41 @@
-import json
-from datetime import timedelta
-from typing import Iterable, List
-
-from dateutil.relativedelta import relativedelta
 from rpc_wrap import RpcApp
 
-from . import figs
-from .session import DemandModellingSession
-from .t2_session import T2DemandModellingSession
-from .types import Dates
-from .util import format_date
+from cs_demand_model.rpc import views
+from cs_demand_model.rpc.state import DemandModellingState
+from cs_demand_model.rpc.util import json_response
+
+
+class T2DemandModellingSession:
+    def __init__(self):
+        self.state = DemandModellingState()
+        self.views = {
+            "datastore": views.DataStoreView(),
+            "charts": views.ChartsView(),
+        }
+
+    @property
+    def current_view(self):
+        if self.state.datastore is None:
+            return self.views["datastore"]
+        else:
+            return self.views["charts"]
+
+    def action(self, action, data=None):
+        if action != "init":
+            self.state = self.current_view.action(action, self.state, data)
+        return dict(
+            view=self.current_view.render(self.state),
+            state=dict(
+                start_date=self.state.start_date,
+                end_date=self.state.end_date,
+                prediction_end_date=self.state.prediction_end_date,
+                step_size=self.state.step_days,
+            ),
+        )
+
 
 app = RpcApp("CS Demand Model")
-
 dm_session = T2DemandModellingSession()
-
-
-class T2Encoder(json.JSONEncoder):
-    def default(self, obj):
-        try:
-            obj = obj.__json__()
-        except AttributeError:
-            pass
-        return obj
-
-
-def json_response(obj):
-    return json.loads(json.dumps(obj, cls=T2Encoder))
 
 
 @app.call
