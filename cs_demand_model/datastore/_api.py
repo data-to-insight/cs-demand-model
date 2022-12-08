@@ -15,7 +15,7 @@ class TableType(Enum):
 class Metadata:
     name: str
     size: int
-    year: int
+    year: int = None
     table: TableType = None
 
 

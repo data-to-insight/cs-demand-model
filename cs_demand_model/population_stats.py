@@ -67,6 +67,7 @@ class PopulationStats:
 
     @lru_cache(maxsize=5)
     def stock_at(self, start_date):
+        start_date = pd.to_datetime(start_date)
         stock = self.stock.loc[start_date].T
         stock.name = start_date
         return stock
@@ -171,6 +172,8 @@ class PopulationStats:
         Returns the number of entrants and the daily_probability of entrants for each age bracket and placement type.
         """
         PlacementCategories = self.__config.PlacementCategories
+        start_date = pd.to_datetime(start_date)
+        end_date = pd.to_datetime(end_date)
 
         df = self.df
 

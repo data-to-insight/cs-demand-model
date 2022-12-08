@@ -1,10 +1,8 @@
-import csv
 import dataclasses
-import io
 import logging
 from datetime import date
 from functools import cached_property
-from typing import Any, List, Optional
+from typing import Any, Generator, List, Optional, Tuple
 
 import pandas as pd
 
@@ -28,8 +26,10 @@ class DemandModellingDataContainer:
         self.__file_info = []
         for file_info in datastore.files:
             if not file_info.metadata.table:
-                table_type = self._detect_table_type(file_info)
-                metadata = dataclasses.replace(file_info.metadata, table=table_type)
+                table_type, year = self._detect_table_type(file_info)
+                metadata = dataclasses.replace(
+                    file_info.metadata, table=table_type, year=year
+                )
                 file_info = dataclasses.replace(file_info, metadata=metadata)
 
             # We only care about Header and Episodes
@@ -39,16 +39,24 @@ class DemandModellingDataContainer:
             ]:
                 self.__file_info.append(file_info)
 
+        print("Created datastore with", self.__file_info)
+
+    @property
+    def file_info(self):
+        return self.__file_info
+
     def __read_first_line(self, file_info: DataFile) -> List[Any]:
         """
         Reads the first line of a file and returns the values as a list.
         This only currently works for CSV files.
         """
         with self.__datastore.open(file_info) as f:
-            reader = csv.reader(io.TextIOWrapper(f))
+            reader = self.__datastore.to_dataframe(file_info)
             return next(reader)
 
-    def _detect_table_type(self, file_info: DataFile) -> Optional[TableType]:
+    def _detect_table_type(
+        self, file_info: DataFile
+    ) -> Tuple[Optional[TableType], Optional[int]]:
         """
         Detect the table type of a file by reading the first line of the file and looking for a
         known table type.
@@ -56,25 +64,37 @@ class DemandModellingDataContainer:
         :param file_info: The file to detect the table type for
         :return: The table type or None if not found.
         """
-        first_row = set(self.__read_first_line(file_info))
-        if len(first_row) == 0:
-            return None
+        try:
+            df = self.__datastore.to_dataframe(file_info)
+        except:
+            log.exception("Failed to read file %s", file_info)
+            return None, None
 
+        table_type = None
         for table_type in SSDA903TableType:
             table_class = table_type.value
             fields = table_class.fields
-            if len(set(fields) - first_row) == 0:
-                return table_type
+            if len(set(fields) - set(df.columns)) == 0:
+                break
 
-        return None
+        year = None
+        if table_type == SSDA903TableType.EPISODES:
+            df["DECOM"] = pd.to_datetime(df["DECOM"], dayfirst=True)
+            year = max(df["DECOM"].dt.year)
+
+        return table_type, year
 
     @property
     def first_year(self):
-        return min([info.metadata.year for info in self.__file_info])
+        return min(
+            [info.metadata.year for info in self.__file_info if info.metadata.year]
+        )
 
     @property
     def last_year(self):
-        return max([info.metadata.year for info in self.__file_info])
+        return max(
+            [info.metadata.year for info in self.__file_info if info.metadata.year]
+        )
 
     def get_table(self, year: int, table_type: TableType) -> pd.DataFrame:
         """
@@ -93,6 +113,14 @@ class DemandModellingDataContainer:
             f"Could not find table for year {year} and table type {table_type}"
         )
 
+    def get_tables_by_type(
+        self, table_type: TableType
+    ) -> Generator[pd.DataFrame, None, None]:
+        for info in self.__file_info:
+            print("INFO", info)
+            if info.metadata.table == table_type:
+                yield self.__datastore.to_dataframe(info)
+
     def combined_year(self, year: int) -> pd.DataFrame:
         """
         Returns the combined view for the year consisting of Episodes and Headers
@@ -100,8 +128,12 @@ class DemandModellingDataContainer:
         :param year: The year to get the combined view for
         :return: A pandas DataFrame containing the combined view
         """
+        header = list(self.get_tables_by_type(SSDA903TableType.HEADER))
+        if len(list(header)) == 0:
+            raise ValueError("No headers found")
+        header = pd.concat(header)
+        header = header.drop_duplicates(subset=["CHILD"])
 
-        header = self.get_table(year, SSDA903TableType.HEADER)
         episodes = self.get_table(year, SSDA903TableType.EPISODES)
 
         # TODO: This should be done when the table is first read
