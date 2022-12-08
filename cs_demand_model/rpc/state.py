@@ -1,17 +1,21 @@
 import inspect
+import tempfile
 from datetime import date
 from functools import lru_cache
 from math import ceil
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
+from rpc_wrap.__api import RemoteFile
 
 from cs_demand_model import (
     Config,
     DemandModellingDataContainer,
     ModelPredictor,
     PopulationStats,
+    fs_datastore,
 )
 from cs_demand_model.datastore import DataStore
 
@@ -42,9 +46,6 @@ def state_property(*dec_args, **dec_kwargs):
 
 
 class DemandModellingState:
-    datastore: DataStore = None
-    step_days = 90
-
     def __init__(self):
         self.config = Config()
         self.colors = {
@@ -53,15 +54,53 @@ class DemandModellingState:
             self.config.PlacementCategories.SUPPORTED: dict(color="red"),
             self.config.PlacementCategories.OTHER: dict(color="orange"),
         }
+        self.__temp_folder = tempfile.TemporaryDirectory()
+        self.__temp_folder_path = Path(self.__temp_folder.name)
+
+        self.datastore_ready = False
+        self.__datastore = None
+        self.step_days = 90
+
         self.__start_date: Optional[date] = None
         self.__end_date: Optional[date] = None
         self.__prediction_end_date: Optional[date] = None
         self.__predictor: Optional[ModelPredictor] = None
 
     @state_property(cache=1)
+    def datastore(self, datastore_ready) -> Optional[DataStore]:
+        if not datastore_ready:
+            return None
+        if self.__datastore is None:
+            self.__datastore = fs_datastore(self.__temp_folder_path.as_posix())
+        return self.__datastore
+
+    @datastore.setter
+    def datastore(self, value):
+        self.__datastore = value
+        self.datastore_ready = True
+
+    def add_file(self, id, record):
+        file = record["file"]
+        if isinstance(file, RemoteFile):
+            file_path = self.__temp_folder_path / f"{id}.csv"
+            with file_path.open("wb") as f:
+                f.write(file.read())
+
+    @property
+    def files(self):
+        return {
+            f.name: dict(
+                file=dict(name=f.name.rsplit("_", 2)[0], size=f.stat().st_size)
+            )
+            for f in self.__temp_folder_path.iterdir()
+        }
+
+    @state_property(cache=1)
     def datacontainer(
-        self, config: Config, datastore: DataStore
-    ) -> DemandModellingDataContainer:
+        self, config: Config, datastore: DataStore, datastore_ready: bool
+    ) -> Optional[DemandModellingDataContainer]:
+        if not datastore_ready:
+            return None
         return DemandModellingDataContainer(datastore, config)
 
     @state_property(cache=1)

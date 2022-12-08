@@ -1,4 +1,10 @@
-from cs_demand_model.rpc.components import BoxPage, Button, ButtonBar, Paragraph
+from cs_demand_model.rpc.components import (
+    BoxPage,
+    Button,
+    ButtonBar,
+    FileUpload,
+    Paragraph,
+)
 from cs_demand_model.rpc.state import DemandModellingState
 from cs_demand_model_samples import V1
 
@@ -10,6 +16,12 @@ class DataStoreView:
         """
         if action == "use_sample_files":
             state.datastore = V1.datastore
+        elif action == "upload_files":
+            for id, f in data.items():
+                state.add_file(id, f)
+        elif action == "datastore_ready":
+            if len(state.files) > 0:
+                state.datastore_ready = True
         return state
 
     def render(self, state: DemandModellingState):
@@ -40,5 +52,18 @@ class DataStoreView:
             Paragraph(
                 "Drop your SSDA903 return files in below to begin generating forecasts!"
             ),
-            ButtonBar(Button("Use sample files", action="use_sample_files")),
+            FileUpload(
+                id="files",
+                action="upload_files",
+                title="Drop your SSDA903 files here or click to select",
+            ),
+            ButtonBar(
+                Button(
+                    "Next", action="datastore_ready", disabled=len(state.files) == 0
+                ),
+                Button(
+                    "Use sample files", action="use_sample_files", variant="outlined"
+                ),
+            ),
+            id="datastore_view",
         )

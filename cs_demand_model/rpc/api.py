@@ -30,6 +30,7 @@ class T2DemandModellingSession:
                 end_date=self.state.end_date,
                 prediction_end_date=self.state.prediction_end_date,
                 step_size=self.state.step_days,
+                files=self.state.files,
             ),
         )
 
@@ -46,4 +47,5 @@ def reset():
 
 @app.call
 def action(action, data=None):
+    print("Processing", action, data)
     return json_response(dm_session.action(action, data))

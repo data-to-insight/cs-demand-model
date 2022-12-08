@@ -1,6 +1,6 @@
 import hashlib
 import uuid
-from typing import Callable
+from typing import Callable, Literal
 
 import plotly
 import plotly.graph_objects as go
@@ -32,10 +32,18 @@ class Paragraph(Component):
 
 
 class Button(Component):
-    def __init__(self, text, action):
+    def __init__(
+        self,
+        text,
+        action,
+        disabled=False,
+        variant: Literal["text", "contained", "outlined"] = "contained",
+    ):
         super().__init__()
         self.text = text
         self.action = action
+        self.disabled = disabled
+        self.variant = variant
 
 
 class ButtonBar(Component):
@@ -45,8 +53,8 @@ class ButtonBar(Component):
 
 
 class BoxPage(Component):
-    def __init__(self, *components):
-        super().__init__()
+    def __init__(self, *components, id: str = None):
+        super().__init__(id=id)
         self.components = components
 
 
@@ -105,3 +113,10 @@ class Fragment(Component):
     def __init__(self, *components: Component):
         super().__init__(type_name="fragment")
         self.components = components
+
+
+class FileUpload(Component):
+    def __init__(self, id: str, title: str, action: str):
+        super().__init__(id=id)
+        self.title = title
+        self.action = action
