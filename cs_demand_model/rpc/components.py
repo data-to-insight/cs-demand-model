@@ -26,9 +26,10 @@ class Component:
 
 
 class Paragraph(Component):
-    def __init__(self, text):
+    def __init__(self, text, strong=False):
         super().__init__(id=id(text))
         self.text = text
+        self.strong = strong
 
 
 class Button(Component):
@@ -110,9 +111,11 @@ class TextField(Component):
 
 
 class Fragment(Component):
-    def __init__(self, *components: Component):
+    def __init__(self, *components: Component, padded: bool = False):
         super().__init__(type_name="fragment")
         self.components = components
+        if padded:
+            self.padded = True
 
 
 class FileUpload(Component):

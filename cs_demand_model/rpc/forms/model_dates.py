@@ -5,7 +5,8 @@ class ModelDatesForm(Fragment):
     def __init__(self):
         super().__init__(
             Paragraph(
-                "Which period of the historical data should the model learn from?"
+                "Which period of the historical data should the model learn from?",
+                strong=True,
             ),
             DateSelect("start_date", "Reference Start Date"),
             DateSelect("end_date", "Reference End Date"),
@@ -16,4 +17,5 @@ class ModelDatesForm(Fragment):
                 "Step Size (in days)",
                 input_props=dict(inputMode="numeric", pattern="[0-9]*"),
             ),
+            padded=True,
         )

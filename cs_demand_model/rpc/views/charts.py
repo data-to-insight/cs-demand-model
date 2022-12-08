@@ -14,7 +14,6 @@ from cs_demand_model.rpc.util import parse_date
 
 class ChartsView:
     def action(self, action, state: DemandModellingState, data):
-        print("ACTION", action, data)
         if action == "calculate":
             state.start_date = parse_date(data["start_date"])
             state.end_date = parse_date(data["end_date"])
@@ -36,9 +35,6 @@ class ChartsView:
                 ),
             ],
             main=[
-                Paragraph(
-                    "Drop your SSDA903 return files in below to begin generating forecasts!"
-                ),
                 Chart(state, figs.forecast),
             ],
             id="charts_view",
