@@ -4,10 +4,11 @@ from cs_demand_model.rpc.components import (
     ButtonBar,
     Chart,
     Expando,
-    Paragraph,
     SidebarPage,
 )
 from cs_demand_model.rpc.forms import ModelDatesForm
+from cs_demand_model.rpc.forms.cost_proportions import CostProportionsForm
+from cs_demand_model.rpc.forms.costs import CostsForm
 from cs_demand_model.rpc.state import DemandModellingState
 from cs_demand_model.rpc.util import parse_date
 
@@ -19,6 +20,12 @@ class ChartsView:
             state.end_date = parse_date(data["end_date"])
             state.prediction_end_date = parse_date(data["prediction_end_date"])
             state.step_days = int(data["step_size"])
+            for key, value in data.items():
+                if key.startswith("costs_"):
+                    state.costs[key] = float(value)
+                elif key.startswith("cost_proportions_"):
+                    state.cost_proportions[key] = float(value)
+
         elif action == "reset":
             state = DemandModellingState()
         return state
@@ -33,9 +40,22 @@ class ChartsView:
                     title="Set Forecast Dates",
                     id="model_dates_expando",
                 ),
+                Expando(
+                    CostsForm(state),
+                    ButtonBar(Button("Calculate Now", action="calculate")),
+                    title="Enter Placement Costs",
+                    id="costs_expando",
+                ),
+                Expando(
+                    CostProportionsForm(state),
+                    ButtonBar(Button("Calculate Now", action="calculate")),
+                    title="Edit Proportions for Cost Categories",
+                    id="cost_proportions_expando",
+                ),
             ],
             main=[
                 Chart(state, figs.forecast),
+                Chart(state, figs.costs),
             ],
             id="charts_view",
         )

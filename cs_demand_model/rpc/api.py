@@ -23,6 +23,7 @@ class T2DemandModellingSession:
     def action(self, action, data=None):
         if action != "init":
             self.state = self.current_view.action(action, self.state, data)
+
         return dict(
             view=self.current_view.render(self.state),
             state=dict(
@@ -31,6 +32,8 @@ class T2DemandModellingSession:
                 prediction_end_date=self.state.prediction_end_date,
                 step_size=self.state.step_days,
                 files=self.state.files,
+                **self.state.costs,
+                **self.state.cost_proportions,
             ),
         )
 

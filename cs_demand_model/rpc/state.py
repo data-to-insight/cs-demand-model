@@ -66,6 +66,9 @@ class DemandModellingState:
         self.__prediction_end_date: Optional[date] = None
         self.__predictor: Optional[ModelPredictor] = None
 
+        self.__costs = None
+        self.__cost_proportions = None
+
     @state_property(cache=1)
     def datastore(self, datastore_ready) -> Optional[DataStore]:
         if not datastore_ready:
@@ -170,3 +173,35 @@ class DemandModellingState:
         self, predictor: ModelPredictor, steps: int, step_days: int
     ) -> pd.DataFrame:
         return predictor.predict(steps, step_days)
+
+    @state_property
+    def costs(self, config):
+        if self.__costs is None:
+            self.__costs = {
+                f"costs_{c.id}": c.defaults.cost_per_day for c in config.costs
+            }
+        return self.__costs
+
+    @state_property
+    def cost_proportions(self, config):
+        if self.__cost_proportions is None:
+            self.__cost_proportions = {
+                f"cost_proportions_{c.id}": c.defaults.proportion for c in config.costs
+            }
+        return self.__cost_proportions
+
+    @state_property
+    def cost_items(self, config, costs, cost_proportions):
+        sum_weights = {}
+        for c in config.costs:
+            p = cost_proportions[f"cost_proportions_{c.id}"]
+            sum_weights[c.category] = sum_weights.get(c.category, 0) + p
+
+        weighted_costs = {}
+        for c in config.costs:
+            line_cost = costs[f"costs_{c.id}"]
+            p = cost_proportions[f"cost_proportions_{c.id}"]
+            cost = line_cost * p / sum_weights[c.category]
+            weighted_costs[c.category] = weighted_costs.get(c.category, 0) + cost
+
+        return weighted_costs
