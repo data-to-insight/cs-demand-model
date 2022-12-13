@@ -1,7 +1,7 @@
 import hashlib
 import logging
 import uuid
-from typing import Callable, Literal
+from typing import Callable, Dict, List, Literal, Optional
 
 import plotly
 import plotly.graph_objects as go
@@ -44,12 +44,16 @@ class Button(Component):
         action,
         disabled=False,
         variant: Literal["text", "contained", "outlined"] = "contained",
+        start_icon: str = None,
+        end_icon: str = None,
     ):
         super().__init__()
         self.text = text
         self.action = action
         self.disabled = disabled
         self.variant = variant
+        self.start_icon = start_icon
+        self.end_icon = end_icon
 
 
 class ButtonBar(Component):
@@ -110,10 +114,33 @@ class DateSelect(Component):
 
 
 class TextField(Component):
-    def __init__(self, id: str, title: str, input_props: dict = None):
+    def __init__(
+        self,
+        id: str,
+        title: str,
+        input_props: dict = None,
+        start_icon: str = None,
+        end_icon: str = None,
+    ):
         super().__init__(id=id)
         self.title = title
         self.input_props = input_props or {}
+        self.start_icon = start_icon
+        self.end_icon = end_icon
+
+
+class Select(Component):
+    def __init__(
+        self,
+        id: str,
+        title: str,
+        options: List[Dict[str, str]],
+        auto_action: Optional[str] = None,
+    ):
+        super().__init__(id=id)
+        self.title = title
+        self.options = options or []
+        self.auto_action = auto_action
 
 
 class Fragment(Component):

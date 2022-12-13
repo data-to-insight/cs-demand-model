@@ -75,21 +75,21 @@ config:
       label: Fostering (Friend/Relative)
       category: FOSTERING
       defaults:
-        cost_per_day: 1000
+        cost_per_day: 100
         proportion: 1
 
     foster_in_house:
       label: Fostering (In-house)
       category: FOSTERING
       defaults:
-        cost_per_day: 1000
+        cost_per_day: 150
         proportion: 1
 
     foster_IFA:
       label: Fostering (IFA)
       category: FOSTERING
       defaults:
-        cost_per_day: 1000
+        cost_per_day: 250
         proportion: 1
 
     resi_in_house:

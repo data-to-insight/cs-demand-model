@@ -13,38 +13,55 @@ def costs(state: "DemandModellingState") -> go.Figure:
         return placeholder("No data loaded")
     colors = get_colors(state)
 
-    stock_by_type = (
-        state.population_stats.stock.fillna(0).groupby(level=1, axis=1).sum()
-    )
-    pred_by_type = state.prediction.fillna(0).groupby(level=1, axis=1).sum()
+    stock = state.population_stats.stock
+    prediction = state.prediction
+
+    if state.chart_filter != "all":
+        stock = stock.iloc[
+            :,
+            stock.columns.get_level_values(0)
+            == state.config.AgeBrackets[state.chart_filter],
+        ]
+        prediction = prediction.iloc[
+            :,
+            prediction.columns.get_level_values(0)
+            == state.config.AgeBrackets[state.chart_filter],
+        ]
+
+    stock_by_type = stock.fillna(0).groupby(level=1, axis=1).sum()
+    pred_by_type = prediction.fillna(0).groupby(level=1, axis=1).sum()
 
     cost_items = state.cost_items
     for cat in cost_items.keys():
-        stock_by_type[cat] = stock_by_type[cat] * cost_items[cat]
-        pred_by_type[cat] = pred_by_type[cat] * cost_items[cat]
+        if cat in stock_by_type.columns:
+            stock_by_type[cat] = stock_by_type[cat] * cost_items[cat] / 7
+        if cat in pred_by_type.columns:
+            pred_by_type[cat] = pred_by_type[cat] * cost_items[cat] / 7
 
     fig = make_subplots()
     for cat, col in colors.items():
-        fig.add_trace(
-            go.Scatter(
-                x=stock_by_type.index,
-                y=stock_by_type[cat],
-                mode="lines",
-                name=cat.label,
-                line=col,
+        if cat in stock_by_type.columns:
+            fig.add_trace(
+                go.Scatter(
+                    x=stock_by_type.index,
+                    y=stock_by_type[cat],
+                    mode="lines",
+                    name=cat.label,
+                    line=col,
+                )
             )
-        )
 
     for cat, col in colors.items():
-        fig.add_trace(
-            go.Scatter(
-                x=pred_by_type.index,
-                y=pred_by_type[cat],
-                mode="lines",
-                showlegend=False,
-                line=dict(**col, dash="dash"),
+        if cat in pred_by_type.columns:
+            fig.add_trace(
+                go.Scatter(
+                    x=pred_by_type.index,
+                    y=pred_by_type[cat],
+                    mode="lines",
+                    showlegend=False,
+                    line=dict(**col, dash="dash"),
+                )
             )
-        )
 
     fig.add_vline(x=state.end_date, line_color=px.colors.qualitative.D3[0])
     fig.add_vrect(
@@ -56,6 +73,7 @@ def costs(state: "DemandModellingState") -> go.Figure:
     )
 
     fig.update_layout(
+        title="Costs forecast (base)",
         yaxis_title="Costs",
         xaxis_title="Date",
     )

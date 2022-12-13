@@ -8,7 +8,9 @@ class CostProportionsForm(Fragment):
         ]
         super().__init__(
             Paragraph(
-                "To display a cost forecast, enter the average weekly costs for each placement type, "
+                "Adjust the proportion of children per category to generate an adjusted cost forecast. "
+                'e.g. Enter "0.5" under "Fostering (friend/relative)" for a scenario where half the '
+                "children in fostering are with friends/relatives, "
                 'then click "Calculate Now" below.',
                 strong=True,
             ),

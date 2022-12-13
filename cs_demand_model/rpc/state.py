@@ -69,6 +69,8 @@ class DemandModellingState:
         self.__costs = None
         self.__cost_proportions = None
 
+        self.chart_filter = "all"
+
     @state_property(cache=1)
     def datastore(self, datastore_ready) -> Optional[DataStore]:
         if not datastore_ready:
