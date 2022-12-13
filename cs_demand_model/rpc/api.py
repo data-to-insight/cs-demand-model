@@ -35,6 +35,7 @@ class T2DemandModellingSession:
                 **self.state.costs,
                 **self.state.cost_proportions,
             ),
+            errors=self.state.errors,
         )
 
 

@@ -54,8 +54,8 @@ class ChartsView:
                 ),
             ],
             main=[
-                Chart(state, figs.forecast),
-                Chart(state, figs.costs),
+                Chart(state, figs.forecast, id="forecast"),
+                Chart(state, figs.costs, id="costs"),
             ],
             id="charts_view",
         )

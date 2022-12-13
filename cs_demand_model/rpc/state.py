@@ -161,7 +161,11 @@ class DemandModellingState:
         self.__prediction_end_date = value
 
     @state_property(cache=1)
-    def predictor(self, population_stats, start_date, end_date) -> ModelPredictor:
+    def predictor(
+        self, population_stats, start_date, end_date
+    ) -> Optional[ModelPredictor]:
+        if "start_date" in self.errors or "end_date" in self.errors:
+            return None
         return ModelPredictor.from_model(population_stats, start_date, end_date)
 
     @property
@@ -171,7 +175,9 @@ class DemandModellingState:
     @state_property(cache=1)
     def prediction(
         self, predictor: ModelPredictor, steps: int, step_days: int
-    ) -> pd.DataFrame:
+    ) -> Optional[pd.DataFrame]:
+        if predictor is None:
+            return None
         return predictor.predict(steps, step_days)
 
     @state_property
@@ -205,3 +211,22 @@ class DemandModellingState:
             weighted_costs[c.category] = weighted_costs.get(c.category, 0) + cost
 
         return weighted_costs
+
+    @state_property
+    def errors(self) -> dict[str, str]:
+        errors = {}
+        if self.start_date and self.end_date and self.end_date <= self.start_date:
+            errors["end_date"] = "End date must be after the reference start date"
+        if (
+            self.end_date
+            and self.prediction_end_date
+            and self.prediction_end_date <= self.end_date
+        ):
+            errors[
+                "prediction_end_date"
+            ] = "Forecast end date must be after the reference end date"
+        if self.step_days and self.step_days < 1:
+            errors["step_days"] = "Step size must be at least 1"
+        elif self.step_days and self.step_days > 180:
+            errors["step_days"] = "Step size must be at most 180"
+        return errors

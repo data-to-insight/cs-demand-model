@@ -2,6 +2,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from cs_demand_model.rpc.figs.placeholder import placeholder
+
 
 def get_colors(state: "DemandModellingState") -> dict:
     return {
@@ -13,6 +15,8 @@ def get_colors(state: "DemandModellingState") -> dict:
 
 
 def forecast(state: "DemandModellingState") -> go.Figure:
+    if state.population_stats is None or state.prediction is None:
+        return placeholder("No data loaded")
 
     colors = get_colors(state)
 

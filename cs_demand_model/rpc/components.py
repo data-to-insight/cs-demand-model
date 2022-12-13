@@ -1,9 +1,14 @@
 import hashlib
+import logging
 import uuid
 from typing import Callable, Literal
 
 import plotly
 import plotly.graph_objects as go
+
+from cs_demand_model.rpc.figs import placeholder
+
+logger = logging.getLogger(__name__)
 
 
 class Component:
@@ -71,23 +76,24 @@ class Chart(Component):
         self,
         state: "DemandModellingState",
         renderer: Callable[["DemandModellingState"], go.Figure],
+        **kwargs
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.__state = state
         self.__renderer = renderer
 
     @property
     def chart(self):
-        chart = self.__renderer(self.__state)
+        try:
+            chart = self.__renderer(self.__state)
+        except:
+            logger.exception("Error rendering chart")
+            chart = placeholder("Error rendering chart")
         if isinstance(chart, go.Figure):
             chart = plotly.io.to_json(chart, pretty=False)
+        else:
+            raise ValueError("Renderer must return a plotly.graph_objects.Figure")
         return chart
-
-    @property
-    def id(self):
-        digest = hashlib.sha256()
-        digest.update(self.chart.encode())
-        return digest.hexdigest()
 
 
 class Expando(Component):
