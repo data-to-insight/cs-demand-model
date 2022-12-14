@@ -1,3 +1,4 @@
+import io
 from abc import ABC
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -44,10 +45,17 @@ class DataStore(ABC):
 
     def to_dataframe(self, file: [str | DataFile]) -> pd.DataFrame:
         formats = [pd.read_csv, pd.read_excel, pd.read_json]
-        for fmt in formats:
-            try:
-                with self.open(file) as f:
+        with self.open(file) as f:
+            if not f.seekable():
+                f = io.BytesIO(f.read())
+            length = f.seek(0, 2)  # Seek to end of file
+            if length < 2:
+                raise ValueError("File is empty")
+
+            f.seek(0, 0)
+            for fmt in formats:
+                try:
                     return fmt(f)
-            except:
-                pass
-        raise ValueError("Could not read file")
+                except:
+                    pass
+        raise ValueError("Could not find a format able to read this file")

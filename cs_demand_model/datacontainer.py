@@ -66,8 +66,8 @@ class DemandModellingDataContainer:
         """
         try:
             df = self.__datastore.to_dataframe(file_info)
-        except:
-            log.exception("Failed to read file %s", file_info)
+        except Exception as ex:
+            log.warning("Failed to read file %s: %s", file_info, ex)
             return None, None
 
         table_type = None
