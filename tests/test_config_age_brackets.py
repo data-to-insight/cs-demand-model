@@ -21,38 +21,6 @@ def AgeBrackets(config):
     return config.AgeBrackets
 
 
-def test_ages():
-    AgeBrackets = build_age_brackets(dict(CAT_A=dict(min=5, max=10)))
-    assert AgeBrackets.CAT_A.start == 5
-    assert AgeBrackets.CAT_A.end == 10
-    assert AgeBrackets.CAT_A.label == "5 to 10"
-
-
-def test_bracket_for():
-    AgeBrackets = build_age_brackets(
-        dict(
-            CAT_A=dict(min=5, max=10),
-            CAT_B=dict(min=10, max=15),
-        )
-    )
-
-    assert AgeBrackets.bracket_for_age(5) == AgeBrackets.CAT_A
-    assert AgeBrackets.bracket_for_age(9) == AgeBrackets.CAT_A
-    assert AgeBrackets.bracket_for_age(10) == AgeBrackets.CAT_B
-
-
-def test_label():
-    AgeBrackets = build_age_brackets(
-        dict(
-            CAT_A=dict(min=5, max=10),
-            CAT_B=dict(max=15, label="Birth to 15"),
-        )
-    )
-
-    assert AgeBrackets.CAT_A.label == "5 to 10"
-    assert AgeBrackets.CAT_B.label == "Birth to 15"
-
-
 def test_order(AgeBrackets):
     assert AgeBrackets.BIRTH_TO_ONE.next == AgeBrackets.ONE_TO_FIVE
     assert AgeBrackets.ONE_TO_FIVE.next == AgeBrackets.FIVE_TO_TEN
