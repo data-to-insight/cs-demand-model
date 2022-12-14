@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-import yaml
 
 import cs_demand_model.fixtures.config
 from cs_demand_model.config import Config
@@ -20,38 +19,6 @@ def config():
 @pytest.fixture
 def AgeBrackets(config):
     return config.AgeBrackets
-
-
-def test_ages():
-    AgeBrackets = build_age_brackets(dict(CAT_A=dict(min=5, max=10)))
-    assert AgeBrackets.CAT_A.start == 5
-    assert AgeBrackets.CAT_A.end == 10
-    assert AgeBrackets.CAT_A.label == "5 to 10"
-
-
-def test_bracket_for():
-    AgeBrackets = build_age_brackets(
-        dict(
-            CAT_A=dict(min=5, max=10),
-            CAT_B=dict(min=10, max=15),
-        )
-    )
-
-    assert AgeBrackets.bracket_for_age(5) == AgeBrackets.CAT_A
-    assert AgeBrackets.bracket_for_age(9) == AgeBrackets.CAT_A
-    assert AgeBrackets.bracket_for_age(10) == AgeBrackets.CAT_B
-
-
-def test_label():
-    AgeBrackets = build_age_brackets(
-        dict(
-            CAT_A=dict(min=5, max=10),
-            CAT_B=dict(max=15, label="Birth to 15"),
-        )
-    )
-
-    assert AgeBrackets.CAT_A.label == "5 to 10"
-    assert AgeBrackets.CAT_B.label == "Birth to 15"
 
 
 def test_order(AgeBrackets):
