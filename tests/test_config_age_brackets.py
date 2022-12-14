@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-import yaml
 
 import cs_demand_model.fixtures.config
 from cs_demand_model.config import Config

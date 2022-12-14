@@ -1,4 +1,4 @@
-from cs_demand_model.rpc.t2_session import state_property
+from cs_demand_model.rpc.state import state_property
 
 
 class State:
@@ -16,6 +16,7 @@ class State:
 
     @state_property(cache=5)
     def fourth_value(self, second_value, third_value):
+        self.calc_count += 1
         return third_value * second_value
 
 

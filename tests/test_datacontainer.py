@@ -9,7 +9,7 @@ def test_data_container():
     samples = Path(cs_demand_model_samples.__file__).parent / "combined"
     datastore = fs_datastore(samples.as_posix())
 
-    assert len(list(datastore.files)) == 10
+    assert len(list(datastore.files)) == 50
 
     container = DemandModellingDataContainer(datastore, Config())
 
