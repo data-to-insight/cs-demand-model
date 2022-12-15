@@ -203,8 +203,7 @@ def test_transfer_in_to_system():
         initial_population, transition_numbers=transition_numbers, days=10
     )
 
-    # Transfers in are significantly affected by compound
-    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(100.5, abs=0.1)
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(100.5, abs=0.005)
     assert next_pop[("Age Bin 1", "PT2")] == 0
     assert next_pop[("Age Bin 1", "PT3")] == 200
 

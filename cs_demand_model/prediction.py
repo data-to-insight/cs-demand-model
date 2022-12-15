@@ -101,14 +101,17 @@ def transition_population(
             initial_population, transition_numbers
         )
 
+    if days > 1:
+        if transition_rates is not None:
+            transition_rates = 1 - (1 - transition_rates) ** days
+        if transition_numbers is not None:
+            transition_numbers = transition_numbers * days
+
     if transition_numbers is not None and transition_rates is not None:
         # Combine rates
         transition_rates = transition_rates + transition_numbers
     elif transition_numbers is not None:
         transition_rates = transition_numbers
-
-    if days > 1:
-        transition_rates = 1 - (1 - transition_rates) ** days
 
     df_out = calculate_transfers_out(initial_population, transition_rates)
     df_in = calculate_transfers_in(df_out, transition_rates)
