@@ -10,11 +10,124 @@ except ImportError:
     tqdm = None
 
 
+def calculate_transfers_out(
+    initial_population: pd.Series, transition_rates: pd.Series
+) -> pd.DataFrame:
+    """
+    Calculate the number of people that will be transferred out of each placement type and age bin
+    """
+    # We start with the full population
+    df_out = pd.DataFrame(initial_population)
+    df_out.columns = ["initial"]
+    df_out.index.names = ["from"]
+
+    # Add the transition 'out' rates (so summed for the particular level)
+    df_out["out_rate"] = transition_rates.groupby(level=0).sum()
+
+    # Calculate the number of people that will be transferred out
+    df_out["transfer_out"] = df_out.initial * df_out.out_rate
+
+    # If at any point the transfers out exceed the population, we set the transfers out to the population
+    df_out.loc[df_out.transfer_out > df_out.initial, "transfer_out"] = df_out.initial
+
+    # Fill any NaNs with 0
+    df_out = df_out.fillna(0)
+    return df_out
+
+
+def calculate_transfers_in(
+    transfers_out: pd.DataFrame, transition_rates: pd.Series
+) -> pd.DataFrame:
+    """
+    Calculate the number of people that will be transferred out of each placement type and age bin
+    """
+    # We start with all of the transitions
+    df_in = pd.DataFrame(transition_rates)
+    df_in.columns = ["transition_rates"]
+    df_in.index.names = ["from", "to"]
+    df_in.reset_index(level=1, inplace=True)
+
+    # Add rates for the from groups
+    df_in["group_rates"] = transfers_out.out_rate
+
+    # Calculate fraction for each individual transition
+    df_in["fraction"] = df_in.transition_rates / df_in.group_rates
+
+    # Now insert the numbers that have been transferred out
+    df_in["out"] = transfers_out.transfer_out
+
+    # And calculate the transfer in numbers
+    df_in["transfer_in"] = df_in.fraction * df_in.out
+
+    # For transfers in, we always assume a ratio of 1 days
+    df_in.loc[df_in.index.isnull(), "transfer_in"] = df_in.transition_rates
+
+    df_in.set_index(["to"], append=True, inplace=True)
+
+    return df_in
+
+
+def calculate_rate_from_numbers(
+    initial_population: pd.Series, transition_numbers: pd.Series
+) -> pd.Series:
+    df_num = pd.DataFrame(transition_numbers)
+    df_num.columns = ["transition_numbers"]
+    df_num.index.names = ["from", "to"]
+    df_num.reset_index(level=1, inplace=True)
+    df_num["population"] = initial_population
+
+    # For transfers in, we always assume a population of 1
+    df_num.loc[df_num.index.get_level_values(0).isnull(), "population"] = 1
+    df_num["rate"] = df_num.transition_numbers / df_num.population
+
+    df_num.set_index(["to"], append=True, inplace=True)
+
+    return df_num.rate
+
+
+def transition_population(
+    initial_population: pd.Series,
+    transition_rates: pd.Series = None,
+    transition_numbers: pd.Series = None,
+    days: int = 1,
+):
+    assert days > 0, "Days must be greater than 0"
+    if transition_rates is None and transition_numbers is None:
+        return initial_population.copy()
+
+    if transition_numbers is not None:
+        # Calculate transition rates from transition numbers
+        transition_numbers = calculate_rate_from_numbers(
+            initial_population, transition_numbers
+        )
+
+    if transition_numbers is not None and transition_rates is not None:
+        # Combine rates
+        transition_rates = transition_rates + transition_numbers
+    elif transition_numbers is not None:
+        transition_rates = transition_numbers
+
+    if days > 1:
+        transition_rates = 1 - (1 - transition_rates) ** days
+
+    df_out = calculate_transfers_out(initial_population, transition_rates)
+    df_in = calculate_transfers_in(df_out, transition_rates)
+    transfer_in = (
+        df_in.transfer_in.groupby(level=["to"])
+        .sum()
+        .reindex(initial_population.index, fill_value=0)
+    )
+
+    to_transfer = initial_population - df_out.transfer_out + transfer_in
+
+    return to_transfer
+
+
 class ModelPredictor:
     def __init__(
         self,
         population: pd.Series,
-        rates_matrix: pd.DataFrame,
+        rates_matrix: pd.Series,
         entrants: pd.Series,
         start_date: date,
     ):
@@ -25,7 +138,7 @@ class ModelPredictor:
 
     @staticmethod
     def from_model(model: PopulationStats, reference_start: date, reference_end: date):
-        transition_rates = model.raw_transition_rates(reference_start, reference_end)
+        transition_rates = model.transition_rates(reference_start, reference_end)
         return ModelPredictor(
             model.stock_at(reference_end),
             transition_rates,
@@ -80,36 +193,17 @@ class ModelPredictor:
         c["adjusted"] = c.iloc[:, 0] - c.aged_out + c.aged_in
         return c.adjusted
 
-    def _remain_rates(self, rates):
-        # Exclude self transitions
-        exclude_self_transitions = [i for i in rates.index if i[1] != i[2]]
-        rates = rates[exclude_self_transitions]
-
-        # Now sum the remaining rates
-        summed = rates.reset_index().groupby(["age_bin", "placement_type"]).sum()
-
-        # Calculate the residual rate that should be the 'remain' rate
-        summed["residual"] = 1 - summed.transition_rate
-
-        # Transfer these to the 'self' category
-        summed = summed.reset_index()
-        summed["placement_type_after"] = summed.placement_type
-
-        # Add index back
-        summed = summed.set_index(["age_bin", "placement_type", "placement_type_after"])
-
-        return summed.residual
-
     def transition_population(self, start_population: pd.Series, step_days: int = 1):
         """
         Shuffles the population according to the transition rates by one day
         """
         # Multiply the rates matrix by the current population
-        rates_matrix = self.__rates_matrix * step_days
-        rates_matrix = self._remain_rates(rates_matrix)
+        rates_matrix = self.__rates_matrix
         rates_matrix = rates_matrix.unstack().fillna(0)
 
-        adjusted = rates_matrix.multiply(start_population, axis="index")
+        adjusted = start_population
+        for _ in range(step_days):
+            adjusted = rates_matrix.multiply(adjusted, axis="index")
 
         # Sum the rows to get the total number of transitions
         adjusted = adjusted.reset_index().groupby("age_bin").sum().stack()
