@@ -27,14 +27,16 @@ class PopulationStats:
         finding all the transitions (start or end of episode), summing to get total populations for each
         day and then resampling to get the daily populations.
         """
-        endings = self.df.groupby(["DEC", "placement_type", "age_bin"]).size()
+        df = self.df.copy()
+        df["bin"] = df.apply(lambda c: (c.age_bin.name, c.placement_type.name), axis=1)
+        endings = df.groupby(["DEC", "bin"]).size()
         endings.name = "nof_decs"
 
-        beginnings = self.df.groupby(["DECOM", "placement_type", "age_bin"]).size()
+        beginnings = df.groupby(["DECOM", "bin"]).size()
         beginnings.name = "nof_decoms"
 
-        endings.index.names = ["date", "placement_type", "age_bin"]
-        beginnings.index.names = ["date", "placement_type", "age_bin"]
+        endings.index.names = ["date", "bin"]
+        beginnings.index.names = ["date", "bin"]
 
         pops = pd.merge(
             left=beginnings,
@@ -46,22 +48,15 @@ class PopulationStats:
 
         pops = pops.fillna(0).sort_values("date")
 
-        pops = (
-            (pops["nof_decoms"] - pops["nof_decs"])
-            .groupby(["placement_type", "age_bin"])
-            .cumsum()
-        )
+        pops = (pops["nof_decoms"] - pops["nof_decs"]).groupby(["bin"]).cumsum()
+
+        pops = pops.unstack(level=1)
 
         # Resample to daily counts and forward-fill in missing days
-        pops = (
-            pops.unstack(["age_bin", "placement_type"])
-            .resample("D")
-            .first()
-            .fillna(method="ffill")
-        )
+        pops = pops.resample("D").first().fillna(method="ffill").fillna(0)
 
         # Add the missing age bins and fill with zeros
-        pops = pops.T.reindex(self.__config.states(as_index=True)).T.fillna(0)
+        # pops = pops.T.reindex(self.__config.states(as_index=True)).T.fillna(0)
 
         return pops
 
@@ -74,21 +69,19 @@ class PopulationStats:
 
     @property
     def transitions(self):
-        transitions = self.df.groupby(
-            ["placement_type", "placement_type_after", "age_bin", "DEC"]
-        ).size()
+        transitions = self.df.copy()
+        transitions["start_bin"] = transitions.apply(
+            lambda c: (c.age_bin.name, c.placement_type.name), axis=1
+        )
+        transitions["end_bin"] = transitions.apply(
+            lambda c: (c.age_bin.name, c.placement_type_after.name), axis=1
+        )
+        transitions = transitions.groupby(["start_bin", "end_bin", "DEC"]).size()
         transitions = (
-            transitions.unstack(
-                level=["age_bin", "placement_type", "placement_type_after"]
-            )
+            transitions.unstack(level=["start_bin", "end_bin"])
             .fillna(0)
             .asfreq("D", fill_value=0)
         )
-
-        # Add the missing age bins and fill with zeros
-        transitions = transitions.T.reindex(
-            self.__config.transitions(not_in_care=True, as_index=True)
-        ).T.fillna(0)
 
         return transitions
 
@@ -96,6 +89,7 @@ class PopulationStats:
     def raw_transition_rates(self, start_date: date, end_date: date):
         # Ensure we can calculate the transition rates by aligning the dataframes
         stock = self.stock.truncate(before=start_date, after=end_date)
+        stock.columns.name = "start_bin"
         transitions = self.transitions.truncate(before=start_date, after=end_date)
 
         # Calculate the transition rates
@@ -178,12 +172,14 @@ class PopulationStats:
         df = self.df
 
         # Only look at episodes starting in analysis period
-        df = df[(df["DECOM"] >= start_date) & (df["DECOM"] <= end_date)]
+        df = df[(df["DECOM"] >= start_date) & (df["DECOM"] <= end_date)].copy()
+
+        df["to"] = df.apply(lambda c: (c.age_bin.name, c.placement_type.name), axis=1)
 
         # Group by age bin and placement type
         df = (
             df[df["placement_type_before"] == PlacementCategories.NOT_IN_CARE]
-            .groupby(["age_bin", "placement_type"])
+            .groupby(["to"])
             .size()
         )
         df.name = "entrants"
@@ -193,8 +189,9 @@ class PopulationStats:
 
         df["period_duration"] = (end_date - start_date).days
         df["daily_entry_probability"] = df["entrants"] / df["period_duration"]
+        df["from"] = df.period_duration.apply(lambda x: tuple())
 
-        df = df.set_index(["age_bin", "placement_type"])
+        df = df.set_index(["from", "to"])
 
         return df.daily_entry_probability
 

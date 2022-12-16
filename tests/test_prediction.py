@@ -184,7 +184,7 @@ def test_transfer_in_to_system():
     initial_population = pd.Series([100, 0, 200], index=index_values)
     transition_numbers = pd.Series(
         {
-            (None, ("Age Bin 1", "PT1")): 0.05,
+            (tuple(), ("Age Bin 1", "PT1")): 0.05,
         }
     )
 

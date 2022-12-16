@@ -1,5 +1,7 @@
+import itertools
 from datetime import date, timedelta
 
+import numpy as np
 import pandas as pd
 
 from cs_demand_model.population_stats import PopulationStats
@@ -8,6 +10,24 @@ try:
     import tqdm
 except ImportError:
     tqdm = None
+
+
+def ageing_out(config):
+    ageing_out = []
+    for age_group in config.AgeBrackets:
+        for pt in age_group.placement_categories:
+            next_name = (age_group.next.name, pt.name) if age_group.next else tuple()
+            ageing_out.append(
+                {
+                    "from": (age_group.name, pt.name),
+                    "to": next_name,
+                    "rate": age_group.daily_probability,
+                }
+            )
+
+    df = pd.DataFrame(ageing_out)
+    df.set_index(["from", "to"], inplace=True)
+    return df.rate
 
 
 def calculate_transfers_out(
@@ -60,7 +80,9 @@ def calculate_transfers_in(
     df_in["transfer_in"] = df_in.fraction * df_in.out
 
     # For transfers in, we always assume a ratio of 1 days
-    df_in.loc[df_in.index.isnull(), "transfer_in"] = df_in.transition_rates
+    df_in["transfer_in"] = np.where(
+        df_in.index == tuple(), df_in.transition_rates, df_in.transfer_in
+    )
 
     df_in.set_index(["to"], append=True, inplace=True)
 
@@ -77,7 +99,7 @@ def calculate_rate_from_numbers(
     df_num["population"] = initial_population
 
     # For transfers in, we always assume a population of 1
-    df_num.loc[df_num.index.get_level_values(0).isnull(), "population"] = 1
+    df_num.loc[df_num.index.get_level_values(0) == tuple(), "population"] = 1
     df_num["rate"] = df_num.transition_numbers / df_num.population
 
     df_num.set_index(["to"], append=True, inplace=True)
@@ -109,7 +131,10 @@ def transition_population(
 
     if transition_numbers is not None and transition_rates is not None:
         # Combine rates
-        transition_rates = transition_rates + transition_numbers
+        transition_numbers, transition_rates = transition_numbers.align(
+            transition_rates
+        )
+        transition_rates = transition_rates.fillna(0) + transition_numbers.fillna(0)
     elif transition_numbers is not None:
         transition_rates = transition_numbers
 
@@ -130,23 +155,41 @@ class ModelPredictor:
     def __init__(
         self,
         population: pd.Series,
-        rates_matrix: pd.Series,
-        entrants: pd.Series,
+        transition_rates: pd.Series,
+        transition_numbers: pd.Series,
         start_date: date,
     ):
         self.__initial_population = population
-        self.__rates_matrix = rates_matrix
-        self.__entrants = entrants
+        self.__transition_rates = transition_rates
+        self.__transition_numbers = transition_numbers
         self.__start_date = start_date
+
+    @property
+    def transition_rates(self):
+        return self.__transition_rates.copy()
+
+    @property
+    def transition_numbers(self):
+        return self.__transition_numbers.copy()
 
     @staticmethod
     def from_model(model: PopulationStats, reference_start: date, reference_end: date):
-        transition_rates = model.transition_rates(reference_start, reference_end)
+        transition_rates = model.raw_transition_rates(reference_start, reference_end)
+        transition_rates.index.names = ["from", "to"]
+
+        daily_entrants = model.daily_entrants(reference_start, reference_end)
+        daily_entrants.index.names = ["from", "to"]
+
+        aged_out = ageing_out(model.config)
+        transition_rates, aged_out = transition_rates.align(aged_out)
+        transition_rates = transition_rates.fillna(0) + aged_out.fillna(0)
+        transition_rates.index.names = ["from", "to"]
+
         return ModelPredictor(
-            model.stock_at(reference_end),
-            transition_rates,
-            model.daily_entrants(reference_start, reference_end),
-            reference_end,
+            population=model.stock_at(reference_end),
+            transition_rates=transition_rates,
+            transition_numbers=daily_entrants,
+            start_date=reference_end,
         )
 
     @property
@@ -157,87 +200,22 @@ class ModelPredictor:
     def date(self):
         return self.__start_date
 
-    @property
-    def rates(self):
-        return self.__rates_matrix.copy()
-
-    def aged_out(self, start_population: pd.Series, step_days: int = 1):
-        current = start_population.reset_index()
-        current["prob"] = current.age_bin.apply(
-            lambda x: x.daily_probability * step_days
-        )
-        current["aged_out"] = current.prob * current[self.initial_population.name]
-        current["next_age_bin"] = current.age_bin.apply(lambda x: x.next)
-        return current
-
-    def age_population(self, start_population: pd.Series, step_days: int = 1):
-        """
-        Ages the given population by one day and returns the
-        """
-        c = pd.DataFrame(start_population)
-
-        aged_out = self.aged_out(start_population, step_days=step_days)
-
-        # Calculate those who age out per bin
-        leaving = aged_out.set_index(["age_bin", "placement_type"]).aged_out
-
-        # Calculate those who arrive per bin
-        arriving = (
-            aged_out.dropna().set_index(["next_age_bin", "placement_type"]).aged_out
-        )
-        arriving.index.names = ["age_bin", "placement_type"]
-
-        # Add as columns and fill missing values with zero
-        c["aged_out"] = leaving
-        c["aged_in"] = arriving
-        c = c.fillna(0)
-
-        # Add the corrections
-        c["adjusted"] = c.iloc[:, 0] - c.aged_out + c.aged_in
-        return c.adjusted
-
-    def transition_population(self, start_population: pd.Series, step_days: int = 1):
-        """
-        Shuffles the population according to the transition rates by one day
-        """
-        # Multiply the rates matrix by the current population
-        rates_matrix = self.__rates_matrix
-        rates_matrix = rates_matrix.unstack().fillna(0)
-
-        adjusted = start_population
-        for _ in range(step_days):
-            adjusted = rates_matrix.multiply(adjusted, axis="index")
-
-        # Sum the rows to get the total number of transitions
-        adjusted = adjusted.reset_index().groupby("age_bin").sum().stack()
-        adjusted.index.names = ["age_bin", "placement_type"]
-        adjusted.name = "population"
-
-        return adjusted
-
-    def add_new_entrants(self, start_population: pd.Series, step_days: int = 1):
-        """
-        Adds new entrants to the population
-        """
-        c = pd.DataFrame(start_population)
-        c["entry_prob"] = self.__entrants * step_days
-        c = c.fillna(0)
-
-        return c.sum(axis=1)
-
     def next(self, step_days: int = 1):
-        next_population = self.initial_population
-        next_population = self.age_population(next_population, step_days=step_days)
-        next_population = self.transition_population(
-            next_population, step_days=step_days
+        next_population = transition_population(
+            self.initial_population,
+            self.__transition_rates,
+            self.__transition_numbers,
+            days=step_days,
         )
-        next_population = self.add_new_entrants(next_population, step_days=step_days)
 
         next_date = self.date + timedelta(days=step_days)
         next_population.name = next_date
 
         return ModelPredictor(
-            next_population, self.__rates_matrix, self.__entrants, next_date
+            next_population,
+            self.__transition_rates,
+            self.__transition_numbers,
+            next_date,
         )
 
     def predict(self, steps: int = 1, step_days: int = 1, progress=False):
