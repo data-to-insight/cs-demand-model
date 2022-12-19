@@ -4,7 +4,7 @@ from datetime import date
 from functools import lru_cache
 from math import ceil
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -18,6 +18,7 @@ from cs_demand_model import (
     fs_datastore,
 )
 from cs_demand_model.datastore import DataStore
+from cs_demand_model.prediction import ageing_out
 
 
 def state_property(*dec_args, **dec_kwargs):
@@ -45,6 +46,72 @@ def state_property(*dec_args, **dec_kwargs):
         return decorator
 
 
+class Adjustments(Mapping[str, float]):
+    def __init__(self, config: Config):
+        self.__config = config
+        self.__adjustments = {}
+
+    def __setitem__(self, key, value):
+        adjustment_enum = self.adjustment_enum(key)
+        self.__adjustments[adjustment_enum] = value
+
+    def __iter__(self):
+        return iter([self.adjustment_key(*arg) for arg in self.__adjustments])
+
+    def __getitem__(self, key: str) -> float:
+        adjustment_enum = self.adjustment_enum(key)
+        return self.__adjustments[adjustment_enum]
+
+    def __len__(self) -> int:
+        return len(self.__adjustments)
+
+    @property
+    def summary(self):
+        summary = [(self.adjustment_key(*k), v) for k, v in self.__adjustments.items()]
+        return tuple(sorted(summary))
+
+    def __hash__(self):
+        return hash(self.summary)
+
+    def __eq__(self, other):
+        return self.summary == other.summary
+
+    @property
+    def transition_rates(self) -> Optional[pd.DataFrame]:
+        values = [
+            {
+                "from": (age_bracket.name, from_value.name),
+                "to": (age_bracket.name, to_value.name),
+                "rate": value / 30,
+            }
+            for (age_bracket, from_value, to_value), value in self.__adjustments.items()
+            if value
+        ]
+        if not values:
+            return None
+        df = pd.DataFrame(values)
+        df.set_index(["from", "to"], inplace=True)
+        return df.rate
+
+    @staticmethod
+    def adjustment_key(age_bracket, from_type, to_type):
+        return f"adjustments|{from_type.name}|{to_type.name}|{age_bracket.name}".lower()
+
+    def adjustment_enum(self, key: str):
+        key = key.upper()
+        if not key.startswith("ADJUSTMENTS|"):
+            raise KeyError("Invalid key: %s. Keys must start with 'ADJUSTMENTS|'", key)
+
+        key = key[12:]
+        from_value, to_value, age_bracket = key.split("|", 3)
+        from_value, to_value = (
+            self.__config.PlacementCategories[from_value],
+            self.__config.PlacementCategories[to_value],
+        )
+        age_bracket = self.__config.AgeBrackets[age_bracket]
+        return age_bracket, from_value, to_value
+
+
 class DemandModellingState:
     def __init__(self):
         self.config = Config()
@@ -68,6 +135,7 @@ class DemandModellingState:
 
         self.__costs = None
         self.__cost_proportions = None
+        self.__adjustments = Adjustments(self.config)
 
         self.chart_filter = "all"
 
@@ -162,24 +230,43 @@ class DemandModellingState:
     def prediction_end_date(self, value: date):
         self.__prediction_end_date = value
 
-    @state_property(cache=1)
-    def predictor(
-        self, population_stats, start_date, end_date
-    ) -> Optional[ModelPredictor]:
-        if "start_date" in self.errors or "end_date" in self.errors:
-            return None
-        return ModelPredictor.from_model(population_stats, start_date, end_date)
-
     @property
     def steps(self) -> int:
         return ceil((self.prediction_end_date - self.end_date).days / self.step_days)
 
     @state_property(cache=1)
     def prediction(
-        self, predictor: ModelPredictor, steps: int, step_days: int
+        self, population_stats, start_date, end_date, steps: int, step_days: int
     ) -> Optional[pd.DataFrame]:
-        if predictor is None:
+        if "start_date" in self.errors or "end_date" in self.errors:
             return None
+        predictor = ModelPredictor.from_model(population_stats, start_date, end_date)
+        return predictor.predict(steps, step_days)
+
+    @state_property(cache=1)
+    def prediction_adjusted(
+        self,
+        config,
+        population_stats,
+        adjustments,
+        start_date,
+        end_date,
+        steps: int,
+        step_days: int,
+    ) -> Optional[pd.DataFrame]:
+        if not adjustments or adjustments.transition_rates is None:
+            return None
+
+        if "start_date" in self.errors or "end_date" in self.errors:
+            return None
+
+        predictor = ModelPredictor.from_model(
+            population_stats,
+            start_date,
+            end_date,
+            rate_adjustment=adjustments.transition_rates,
+        )
+
         return predictor.predict(steps, step_days)
 
     @state_property
@@ -197,6 +284,10 @@ class DemandModellingState:
                 f"cost_proportions_{c.id}": c.defaults.proportion for c in config.costs
             }
         return self.__cost_proportions
+
+    @state_property
+    def adjustments(self):
+        return self.__adjustments
 
     @state_property
     def cost_items(self, config, costs, cost_proportions):

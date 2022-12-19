@@ -1,20 +1,26 @@
-from datetime import date
-
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from cs_demand_model.rpc.figs.forecast import get_colors
 from cs_demand_model.rpc.figs.placeholder import placeholder
+from cs_demand_model.rpc.figs.util import column_index
 
 
-def costs(state: "DemandModellingState") -> go.Figure:
+def costs(state: "DemandModellingState", prediction: pd.Series = None) -> go.Figure:
     if state.population_stats is None or state.prediction is None:
         return placeholder("No data loaded")
     colors = get_colors(state)
 
-    stock = state.population_stats.stock
-    prediction = state.prediction
+    stock = state.population_stats.stock.copy()
+    stock.columns = column_index(state.config, stock.columns)
+
+    if prediction is None:
+        prediction = state.prediction.copy()
+    else:
+        prediction = prediction.copy()
+    prediction.columns = column_index(state.config, prediction.columns)
 
     if state.chart_filter != "all":
         stock = stock.iloc[
