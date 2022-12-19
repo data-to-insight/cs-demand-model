@@ -35,6 +35,7 @@ class T2DemandModellingSession:
                 chart_filter=self.state.chart_filter,
                 **self.state.costs,
                 **self.state.cost_proportions,
+                **self.state.adjustments,
             ),
             errors=self.state.errors,
         )

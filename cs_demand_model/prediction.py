@@ -1,5 +1,5 @@
-import itertools
 from datetime import date, timedelta
+from typing import Iterable, Union
 
 import numpy as np
 import pandas as pd
@@ -49,6 +49,7 @@ def calculate_transfers_out(
 
     # If at any point the transfers out exceed the population, we set the transfers out to the population
     df_out.loc[df_out.transfer_out > df_out.initial, "transfer_out"] = df_out.initial
+    df_out.loc[df_out.transfer_out < 0, "transfer_out"] = 0
 
     # Fill any NaNs with 0
     df_out = df_out.fillna(0)
@@ -138,6 +139,9 @@ def transition_population(
     elif transition_numbers is not None:
         transition_rates = transition_numbers
 
+    transition_rates = transition_rates.apply(lambda x: min(x, 1))
+    transition_rates = transition_rates.apply(lambda x: max(x, -1))
+
     df_out = calculate_transfers_out(initial_population, transition_rates)
     df_in = calculate_transfers_in(df_out, transition_rates)
     transfer_in = (
@@ -173,17 +177,45 @@ class ModelPredictor:
         return self.__transition_numbers.copy()
 
     @staticmethod
-    def from_model(model: PopulationStats, reference_start: date, reference_end: date):
-        transition_rates = model.raw_transition_rates(reference_start, reference_end)
+    def from_model(
+        model: PopulationStats,
+        reference_start: date,
+        reference_end: date,
+        rate_adjustment: Union[pd.Series | Iterable[pd.Series]] = None,
+        number_adjustment: Union[pd.Series | Iterable[pd.Series]] = None,
+    ):
+        transition_rates = model.raw_transition_rates(
+            reference_start, reference_end
+        ).copy()
         transition_rates.index.names = ["from", "to"]
 
-        daily_entrants = model.daily_entrants(reference_start, reference_end)
+        daily_entrants = model.daily_entrants(reference_start, reference_end).copy()
         daily_entrants.index.names = ["from", "to"]
 
         aged_out = ageing_out(model.config)
         transition_rates, aged_out = transition_rates.align(aged_out)
         transition_rates = transition_rates.fillna(0) + aged_out.fillna(0)
         transition_rates.index.names = ["from", "to"]
+
+        if number_adjustment is not None:
+            if isinstance(number_adjustment, pd.Series):
+                number_adjustment = [number_adjustment]
+            for adjustment in number_adjustment:
+                adjustment = adjustment.copy()
+                adjustment.index.names = ["from", "to"]
+                daily_entrants, adjustment = daily_entrants.align(adjustment)
+                daily_entrants = daily_entrants + adjustment
+                daily_entrants.index.names = ["from", "to"]
+
+        if rate_adjustment is not None:
+            if isinstance(rate_adjustment, pd.Series):
+                rate_adjustment = [rate_adjustment]
+            for adjustment in rate_adjustment:
+                adjustment = adjustment.copy()
+                adjustment.index.names = ["from", "to"]
+                transition_rates, adjustment = transition_rates.align(adjustment)
+                transition_rates = transition_rates + adjustment
+                transition_rates.index.names = ["from", "to"]
 
         return ModelPredictor(
             population=model.stock_at(reference_end),
