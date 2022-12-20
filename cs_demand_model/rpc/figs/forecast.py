@@ -16,7 +16,11 @@ def get_colors(state: "DemandModellingState") -> dict:
     }
 
 
-def forecast(state: "DemandModellingState", prediction: pd.Series = None) -> go.Figure:
+def forecast(
+    state: "DemandModellingState",
+    title: str = "Population forecast (base)",
+    prediction: pd.Series = None,
+) -> go.Figure:
     if state.population_stats is None or state.prediction is None:
         return placeholder("No data loaded")
 
@@ -81,7 +85,7 @@ def forecast(state: "DemandModellingState", prediction: pd.Series = None) -> go.
     )
 
     fig.update_layout(
-        title="Population forecast (base)",
+        title=title,
         yaxis_title="Child Count",
         xaxis_title="Date",
     )

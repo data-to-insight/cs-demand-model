@@ -93,13 +93,19 @@ class ChartsView:
                 Chart(
                     state,
                     figs.forecast,
-                    render_args=dict(prediction=state.prediction_adjusted),
+                    render_args=dict(
+                        title="Population forecast (adjusted)",
+                        prediction=state.prediction_adjusted,
+                    ),
                     id="adj-forecast",
                 ),
                 Chart(
                     state,
                     figs.costs,
-                    render_args=dict(prediction=state.prediction_adjusted),
+                    render_args=dict(
+                        title="Costs forecast (adjusted)",
+                        prediction=state.prediction_adjusted,
+                    ),
                     id="adj-costs",
                 ),
             ]

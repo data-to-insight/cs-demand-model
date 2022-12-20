@@ -8,7 +8,11 @@ from cs_demand_model.rpc.figs.placeholder import placeholder
 from cs_demand_model.rpc.figs.util import column_index
 
 
-def costs(state: "DemandModellingState", prediction: pd.Series = None) -> go.Figure:
+def costs(
+    state: "DemandModellingState",
+    title: str = "Costs forecast (base)",
+    prediction: pd.Series = None,
+) -> go.Figure:
     if state.population_stats is None or state.prediction is None:
         return placeholder("No data loaded")
     colors = get_colors(state)
@@ -79,7 +83,7 @@ def costs(state: "DemandModellingState", prediction: pd.Series = None) -> go.Fig
     )
 
     fig.update_layout(
-        title="Costs forecast (base)",
+        title=title,
         yaxis_title="Costs",
         xaxis_title="Date",
     )
