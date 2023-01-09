@@ -8,7 +8,7 @@ from typing import Mapping, Optional
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
-from rpc_wrap.__api import RemoteFile
+from prpc_python import RemoteFile
 
 from cs_demand_model import (
     Config,

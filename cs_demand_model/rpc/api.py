@@ -1,4 +1,4 @@
-from rpc_wrap import RpcApp
+from prpc_python import RpcApp
 
 from cs_demand_model.rpc import views
 from cs_demand_model.rpc.state import DemandModellingState
