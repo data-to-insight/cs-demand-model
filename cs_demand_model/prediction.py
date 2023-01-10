@@ -165,6 +165,10 @@ def transition_population(
 
     to_transfer = initial_population - df_out.transfer_out + transfer_in
 
+    # Make sure we get rid of any that are not in care
+    if tuple() in to_transfer.index:
+        del to_transfer[tuple()]
+
     return to_transfer
 
 
