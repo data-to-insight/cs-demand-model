@@ -4,8 +4,252 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from cs_demand_model import ModelPredictor
-from cs_demand_model.prediction import transition_population
+from cs_demand_model.prediction import ModelPredictor, ageing_out, transition_population
+
+
+def test_single_transitions():
+    age_bins = ["Age Bin 1"]
+    placement_types = ["PT1", "PT2"]
+    index_values = list(itertools.product(age_bins, placement_types))
+    initial_population = pd.Series([100, 0], index=index_values)
+    transition_rates = pd.Series(
+        {
+            (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+            (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+        }
+    )
+
+    next_pop = transition_population(
+        initial_population,
+        transition_rates=transition_rates,
+    )
+
+    assert next_pop[("Age Bin 1", "PT1")] == 100
+    assert next_pop[("Age Bin 1", "PT2")] == 0
+
+
+def test_predictor_steady_state():
+    predictor = ModelPredictor(
+        population=pd.Series(
+            [100, 0], index=[("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")]
+        ),
+        transition_rates=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        transition_numbers=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        start_date=date(2020, 1, 1),
+    )
+    predictions = predictor.predict(25)
+
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 100
+    assert next_pop[("Age Bin 1", "PT2")] == 0
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == 100
+    assert last_pop[("Age Bin 1", "PT2")] == 0
+
+
+def test_predictor_single_rate():
+    predictor = ModelPredictor(
+        population=pd.Series(
+            [100, 0], index=[("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")]
+        ),
+        transition_rates=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.1,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        transition_numbers=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        start_date=date(2020, 1, 1),
+    )
+    predictions = predictor.predict(25)
+
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 90
+    assert next_pop[("Age Bin 1", "PT2")] == 10
+
+    next_pop = predictions.iloc[1]
+    assert next_pop[("Age Bin 1", "PT1")] == 81
+    assert next_pop[("Age Bin 1", "PT2")] == 19
+
+    next_pop = predictions.iloc[4]
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(59.0, abs=0.1)
+    assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(41.0, abs=0.1)
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == pytest.approx(7.2, abs=0.1)
+    assert last_pop[("Age Bin 1", "PT2")] == pytest.approx(92.8, abs=0.1)
+
+    # Now test with step size
+    predictions = predictor.predict(5, step_days=5)
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(59.0, abs=0.1)
+    assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(41.0, abs=0.1)
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == pytest.approx(7.2, abs=0.1)
+    assert last_pop[("Age Bin 1", "PT2")] == pytest.approx(92.8, abs=0.1)
+
+
+def test_predictor_complex_rate():
+    predictor = ModelPredictor(
+        population=pd.Series(
+            [100, 0], index=[("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")]
+        ),
+        transition_rates=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.1,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.05,
+            }
+        ),
+        transition_numbers=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        start_date=date(2020, 1, 1),
+    )
+    predictions = predictor.predict(25)
+
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 90
+    assert next_pop[("Age Bin 1", "PT2")] == 10
+
+    next_pop = predictions.iloc[1]
+    assert next_pop[("Age Bin 1", "PT1")] == 81.5
+    assert next_pop[("Age Bin 1", "PT2")] == 18.5
+
+    next_pop = predictions.iloc[4]
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(62.9, abs=0.1)
+    assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(37.1, abs=0.1)
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == pytest.approx(34.5, abs=0.1)
+    assert last_pop[("Age Bin 1", "PT2")] == pytest.approx(65.5, abs=0.1)
+
+    # Now test with step size - these should be similar to the above,
+    # but will obviously have a slightly "lower resolution"
+    predictions = predictor.predict(5, step_days=5)
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(59.0, abs=0.1)
+    assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(41.0, abs=0.1)
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == pytest.approx(36.0, abs=0.1)
+    assert last_pop[("Age Bin 1", "PT2")] == pytest.approx(64.0, abs=0.1)
+
+
+def test_predictor_single_adjustment():
+    predictor = ModelPredictor(
+        population=pd.Series(
+            [100, 0], index=[("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")]
+        ),
+        transition_rates=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        transition_numbers=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 10.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        start_date=date(2020, 1, 1),
+    )
+    predictions = predictor.predict(25)
+
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 90
+    assert next_pop[("Age Bin 1", "PT2")] == 10
+
+    next_pop = predictions.iloc[1]
+    assert next_pop[("Age Bin 1", "PT1")] == 80
+    assert next_pop[("Age Bin 1", "PT2")] == 20
+
+    next_pop = predictions.iloc[4]
+    assert next_pop[("Age Bin 1", "PT1")] == 50
+    assert next_pop[("Age Bin 1", "PT2")] == 50
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == 0
+    assert last_pop[("Age Bin 1", "PT2")] == 100
+
+    # Now test with step size
+    predictions = predictor.predict(5, step_days=5)
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 50
+    assert next_pop[("Age Bin 1", "PT2")] == 50
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == 0
+    assert last_pop[("Age Bin 1", "PT2")] == 100
+
+
+def test_predictor_complex_adjustment():
+    predictor = ModelPredictor(
+        population=pd.Series(
+            [100, 0], index=[("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")]
+        ),
+        transition_rates=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 0.0,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 0.0,
+            }
+        ),
+        transition_numbers=pd.Series(
+            {
+                (("Age Bin 1", "PT1"), ("Age Bin 1", "PT2")): 10,
+                (("Age Bin 1", "PT2"), ("Age Bin 1", "PT1")): 5,
+            }
+        ),
+        start_date=date(2020, 1, 1),
+    )
+    predictions = predictor.predict(25)
+
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 90
+    assert next_pop[("Age Bin 1", "PT2")] == 10
+
+    next_pop = predictions.iloc[1]
+    assert next_pop[("Age Bin 1", "PT1")] == 85
+    assert next_pop[("Age Bin 1", "PT2")] == 15
+
+    next_pop = predictions.iloc[4]
+    assert next_pop[("Age Bin 1", "PT1")] == 70
+    assert next_pop[("Age Bin 1", "PT2")] == 30
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == 5
+    assert last_pop[("Age Bin 1", "PT2")] == 95
+
+    # Now test with step size - these should be similar to the above,
+    # however the errors are much larger due to the 'probability' only being calculated every 5 days
+    predictions = predictor.predict(5, step_days=5)
+    next_pop = predictions.iloc[0]
+    assert next_pop[("Age Bin 1", "PT1")] == 50
+    assert next_pop[("Age Bin 1", "PT2")] == 50
+
+    last_pop = predictions.iloc[-1]
+    assert last_pop[("Age Bin 1", "PT1")] == 25
+    assert last_pop[("Age Bin 1", "PT2")] == 75
 
 
 def test_transition_rates():

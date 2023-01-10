@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -12,10 +12,17 @@ except ImportError:
     tqdm = None
 
 
+def combine_rates(rate1: pd.Series, rate2: pd.Series) -> pd.Series:
+    rate1, rate2 = rate1.align(rate2, fill_value=0)
+    rates = rate1 + rate2
+    rates.index.names = ["from", "to"]
+    return rates
+
+
 def ageing_out(config):
     ageing_out = []
     for age_group in config.AgeBrackets:
-        for pt in age_group.placement_categories:
+        for pt in config.PlacementCategories:
             next_name = (age_group.next.name, pt.name) if age_group.next else tuple()
             ageing_out.append(
                 {
@@ -41,8 +48,12 @@ def calculate_transfers_out(
     df_out.columns = ["initial"]
     df_out.index.names = ["from"]
 
+    # Make sure we don't drop levels
+    summed_rates = transition_rates.groupby(level=0).sum()
+    df_out, summed_rates = df_out.align(summed_rates, axis=0, fill_value=0)
+
     # Add the transition 'out' rates (so summed for the particular level)
-    df_out["out_rate"] = transition_rates.groupby(level=0).sum()
+    df_out["out_rate"] = summed_rates
 
     # Calculate the number of people that will be transferred out
     df_out["transfer_out"] = df_out.initial * df_out.out_rate
@@ -67,6 +78,9 @@ def calculate_transfers_in(
     df_in.columns = ["transition_rates"]
     df_in.index.names = ["from", "to"]
     df_in.reset_index(level=1, inplace=True)
+
+    # Make sure we don't drop levels
+    df_in, transfers_out = df_in.align(transfers_out)
 
     # Add rates for the from groups
     df_in["group_rates"] = transfers_out.out_rate
@@ -132,10 +146,7 @@ def transition_population(
 
     if transition_numbers is not None and transition_rates is not None:
         # Combine rates
-        transition_numbers, transition_rates = transition_numbers.align(
-            transition_rates
-        )
-        transition_rates = transition_rates.fillna(0) + transition_numbers.fillna(0)
+        transition_rates = combine_rates(transition_numbers, transition_rates)
     elif transition_numbers is not None:
         transition_rates = transition_numbers
 
@@ -144,6 +155,8 @@ def transition_population(
 
     df_out = calculate_transfers_out(initial_population, transition_rates)
     df_in = calculate_transfers_in(df_out, transition_rates)
+
+    initial_population = initial_population.reindex(df_out.index, fill_value=0)
     transfer_in = (
         df_in.transfer_in.groupby(level=["to"])
         .sum()
@@ -159,9 +172,9 @@ class ModelPredictor:
     def __init__(
         self,
         population: pd.Series,
-        transition_rates: pd.Series,
-        transition_numbers: pd.Series,
-        start_date: date,
+        transition_rates: Optional[pd.Series] = None,
+        transition_numbers: Optional[pd.Series] = None,
+        start_date: date = date.today(),
     ):
         self.__initial_population = population
         self.__transition_rates = transition_rates
@@ -193,9 +206,7 @@ class ModelPredictor:
         daily_entrants.index.names = ["from", "to"]
 
         aged_out = ageing_out(model.config)
-        transition_rates, aged_out = transition_rates.align(aged_out)
-        transition_rates = transition_rates.fillna(0) + aged_out.fillna(0)
-        transition_rates.index.names = ["from", "to"]
+        transition_rates = combine_rates(transition_rates, aged_out)
 
         if number_adjustment is not None:
             if isinstance(number_adjustment, pd.Series):
