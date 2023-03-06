@@ -198,7 +198,7 @@ class PopulationStats:
     def to_excel(self, output_file: str, start_date: date, end_date: date):
         with pd.ExcelWriter(output_file) as writer:
             self.stock_at(end_date).to_excel(writer, sheet_name="population")
-            self.transition_rates(start_date, end_date).to_excel(
+            self.raw_transition_rates(start_date, end_date).to_excel(
                 writer, sheet_name="transition_rates"
             )
             self.daily_entrants(start_date, end_date).to_excel(

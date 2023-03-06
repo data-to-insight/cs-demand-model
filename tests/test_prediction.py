@@ -397,6 +397,35 @@ def test_fixed_transition():
     assert initial_population.sum() == next_pop.sum()
 
 
+def test_fixed_transition_in():
+    """
+    This is the case for new entrants to the system.
+    """
+    age_bins = ["Age Bin 1", "Age Bin 2"]
+    placement_types = ["PT1", "PT2"]
+    index_values = list(itertools.product(age_bins, placement_types))
+
+    initial_population = pd.Series([0, 0, 100, 200], index=index_values)
+    transition_numbers = pd.Series(
+        {
+            ((), ("Age Bin 1", "PT1")): 0.087671,
+            ((), ("Age Bin 1", "PT2")): 0.002,
+            ((), ("Age Bin 2", "PT1")): 0.003,
+            ((), ("Age Bin 2", "PT2")): 0.004,
+        }
+    )
+
+    next_pop = transition_population(
+        initial_population,
+        transition_numbers=transition_numbers,
+    )
+
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(0.001, abs=0.0005)
+    assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(0.002, abs=0.0005)
+    assert next_pop[("Age Bin 2", "PT1")] == pytest.approx(100.003, abs=0.0005)
+    assert next_pop[("Age Bin 2", "PT2")] == pytest.approx(200.004, abs=0.0005)
+
+
 def test_fixed_transition_multi_day():
     age_bins = ["Age Bin 1"]
     placement_types = ["PT1", "PT2", "PT3"]
