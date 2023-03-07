@@ -132,26 +132,23 @@ def transition_population(
     if transition_rates is None and transition_numbers is None:
         return initial_population.copy()
 
-    if transition_numbers is not None:
-        # Calculate transition rates from transition numbers
-        transition_numbers = calculate_rate_from_numbers(
-            initial_population, transition_numbers
-        )
-
     if days > 1:
         if transition_rates is not None:
             transition_rates = 1 - (1 - transition_rates) ** days
         if transition_numbers is not None:
             transition_numbers = transition_numbers * days
 
+    if transition_numbers is not None:
+        # Calculate transition rates from transition numbers
+        transition_numbers = calculate_rate_from_numbers(
+            initial_population, transition_numbers
+        )
+
     if transition_numbers is not None and transition_rates is not None:
         # Combine rates
         transition_rates = combine_rates(transition_numbers, transition_rates)
     elif transition_numbers is not None:
         transition_rates = transition_numbers
-
-    transition_rates = transition_rates.apply(lambda x: min(x, 1))
-    transition_rates = transition_rates.apply(lambda x: max(x, -1))
 
     df_out = calculate_transfers_out(initial_population, transition_rates)
     df_in = calculate_transfers_in(df_out, transition_rates)
@@ -198,8 +195,8 @@ class ModelPredictor:
         model: PopulationStats,
         reference_start: date,
         reference_end: date,
-        rate_adjustment: Union[pd.Series | Iterable[pd.Series]] = None,
-        number_adjustment: Union[pd.Series | Iterable[pd.Series]] = None,
+        rate_adjustment: Union[pd.Series, Iterable[pd.Series]] = None,
+        number_adjustment: Union[pd.Series, Iterable[pd.Series]] = None,
     ):
         transition_rates = model.raw_transition_rates(
             reference_start, reference_end

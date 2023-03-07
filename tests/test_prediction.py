@@ -420,7 +420,7 @@ def test_fixed_transition_in():
         transition_numbers=transition_numbers,
     )
 
-    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(0.001, abs=0.0005)
+    assert next_pop[("Age Bin 1", "PT1")] == pytest.approx(0.0876, abs=0.0005)
     assert next_pop[("Age Bin 1", "PT2")] == pytest.approx(0.002, abs=0.0005)
     assert next_pop[("Age Bin 2", "PT1")] == pytest.approx(100.003, abs=0.0005)
     assert next_pop[("Age Bin 2", "PT2")] == pytest.approx(200.004, abs=0.0005)
