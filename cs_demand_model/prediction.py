@@ -195,6 +195,7 @@ class ModelPredictor:
         model: PopulationStats,
         reference_start: date,
         reference_end: date,
+        prediction_start: Optional[date] = None,
         rate_adjustment: Union[pd.Series, Iterable[pd.Series]] = None,
         number_adjustment: Union[pd.Series, Iterable[pd.Series]] = None,
     ):
@@ -229,11 +230,15 @@ class ModelPredictor:
                 transition_rates = transition_rates + adjustment
                 transition_rates.index.names = ["from", "to"]
 
+        # If we haven't provided a prediction start date, use the reference end
+        if prediction_start is None:
+            prediction_start = reference_end
+
         return ModelPredictor(
-            population=model.stock_at(reference_end),
+            population=model.stock_at(prediction_start),
             transition_rates=transition_rates,
             transition_numbers=daily_entrants,
-            start_date=reference_end,
+            start_date=prediction_start,
         )
 
     @property

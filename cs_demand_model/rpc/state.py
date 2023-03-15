@@ -1,6 +1,6 @@
 import inspect
 import tempfile
-from datetime import date
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from math import ceil
 from pathlib import Path
@@ -18,7 +18,6 @@ from cs_demand_model import (
     fs_datastore,
 )
 from cs_demand_model.datastore import DataStore
-from cs_demand_model.prediction import ageing_out
 
 
 def state_property(*dec_args, **dec_kwargs):
@@ -112,6 +111,18 @@ class Adjustments(Mapping[str, float]):
         return age_bracket, from_value, to_value
 
 
+def _as_date(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        return pd.to_datetime(value).date()
+    raise ValueError("Invalid date: %s", value)
+
+
 class DemandModellingState:
     def __init__(self):
         self.config = Config()
@@ -130,6 +141,7 @@ class DemandModellingState:
 
         self.__start_date: Optional[date] = None
         self.__end_date: Optional[date] = None
+        self.__prediction_start_date: Optional[date] = None
         self.__prediction_end_date: Optional[date] = None
         self.__predictor: Optional[ModelPredictor] = None
 
@@ -188,6 +200,7 @@ class DemandModellingState:
         return dict(
             start_date=end_date - relativedelta(years=1),
             end_date=end_date,
+            prediction_start_date=end_date + timedelta(days=1),
             prediction_end_date=end_date + relativedelta(months=18),
         )
 
@@ -218,6 +231,19 @@ class DemandModellingState:
         self.__end_date = value
 
     @property
+    def prediction_start_date(self) -> Optional[date]:
+        if self.__prediction_start_date:
+            return self.__prediction_start_date
+        elif self.date_defaults:
+            return self.date_defaults["prediction_start_date"]
+        else:
+            return None
+
+    @prediction_start_date.setter
+    def prediction_start_date(self, value: date):
+        self.__prediction_start_date = value
+
+    @property
     def prediction_end_date(self) -> Optional[date]:
         if self.__prediction_end_date:
             return self.__prediction_end_date
@@ -236,17 +262,24 @@ class DemandModellingState:
 
     @state_property(cache=1)
     def prediction(
-        self, population_stats, start_date, end_date, steps: int, step_days: int
+        self,
+        population_stats,
+        start_date,
+        end_date,
+        prediction_start_date,
+        steps: int,
+        step_days: int,
     ) -> Optional[pd.DataFrame]:
         if "start_date" in self.errors or "end_date" in self.errors:
             return None
-        predictor = ModelPredictor.from_model(population_stats, start_date, end_date)
+        predictor = ModelPredictor.from_model(
+            population_stats, start_date, end_date, prediction_start_date
+        )
         return predictor.predict(steps, step_days)
 
     @state_property(cache=1)
     def prediction_adjusted(
         self,
-        config,
         population_stats,
         adjustments,
         start_date,
@@ -264,6 +297,7 @@ class DemandModellingState:
             population_stats,
             start_date,
             end_date,
+            prediction_start=self.prediction_start_date,
             rate_adjustment=adjustments.transition_rates,
         )
 
@@ -310,16 +344,29 @@ class DemandModellingState:
         errors = {}
         if self.start_date and self.end_date and self.end_date <= self.start_date:
             errors["end_date"] = "End date must be after the reference start date"
+
         if (
             self.end_date
+            and self.prediction_start_date
+            and _as_date(self.prediction_start_date) <= _as_date(self.end_date)
+        ):
+            errors[
+                "prediction_start_date"
+            ] = "Forecast start date must be after the reference end date"
+
+        if (
+            self.prediction_start_date
             and self.prediction_end_date
-            and self.prediction_end_date <= self.end_date
+            and _as_date(self.prediction_end_date)
+            <= _as_date(self.prediction_start_date)
         ):
             errors[
                 "prediction_end_date"
-            ] = "Forecast end date must be after the reference end date"
+            ] = "Forecast end date must be after the forecast start date"
+
         if self.step_days and self.step_days < 1:
             errors["step_days"] = "Step size must be at least 1"
         elif self.step_days and self.step_days > 180:
             errors["step_days"] = "Step size must be at most 180"
+
         return errors

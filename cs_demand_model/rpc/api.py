@@ -1,8 +1,12 @@
+import logging
+
 from prpc_python import RpcApp
 
 from cs_demand_model.rpc import views
 from cs_demand_model.rpc.state import DemandModellingState
 from cs_demand_model.rpc.util import json_response
+
+log = logging.getLogger(__name__)
 
 
 class T2DemandModellingSession:
@@ -21,6 +25,7 @@ class T2DemandModellingSession:
             return self.views["charts"]
 
     def action(self, action, data=None):
+        print("Action:", action, data)
         if action != "init":
             self.state = self.current_view.action(action, self.state, data)
 
@@ -29,6 +34,7 @@ class T2DemandModellingSession:
             state=dict(
                 start_date=self.state.start_date,
                 end_date=self.state.end_date,
+                prediction_start_date=self.state.prediction_start_date,
                 prediction_end_date=self.state.prediction_end_date,
                 step_size=self.state.step_days,
                 files=self.state.files,
@@ -53,4 +59,8 @@ def reset():
 
 @app.call
 def action(action, data=None):
-    return json_response(dm_session.action(action, data))
+    try:
+        return json_response(dm_session.action(action, data))
+    except Exception as e:
+        log.exception("Error handling action")
+        raise e

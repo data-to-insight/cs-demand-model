@@ -10,7 +10,8 @@ class ModelDatesForm(Fragment):
             ),
             DateSelect("start_date", "Reference Start Date"),
             DateSelect("end_date", "Reference End Date"),
-            Paragraph("When should the forecast end?"),
+            Paragraph("What is the forecast period?"),
+            DateSelect("prediction_start_date", "Forecast Start Date"),
             DateSelect("prediction_end_date", "Forecast End Date"),
             TextField(
                 "step_size",

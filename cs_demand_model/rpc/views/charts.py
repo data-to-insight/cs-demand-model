@@ -45,6 +45,7 @@ class ChartsView:
         if action == "calculate":
             state.start_date = parse_date(data["start_date"])
             state.end_date = parse_date(data["end_date"])
+            state.prediction_start_date = parse_date(data["prediction_start_date"])
             state.prediction_end_date = parse_date(data["prediction_end_date"])
             state.step_days = _to_int(data["step_size"])
             state.chart_filter = data.get("chart_filter", "")

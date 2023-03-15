@@ -63,7 +63,10 @@ class PopulationStats:
     @lru_cache(maxsize=5)
     def stock_at(self, start_date):
         start_date = pd.to_datetime(start_date)
-        stock = self.stock.loc[start_date].T
+
+        index = self.stock.index.get_indexer([start_date], method="nearest")
+
+        stock = self.stock.iloc[index[0]].T
         stock.name = start_date
         return stock
 
