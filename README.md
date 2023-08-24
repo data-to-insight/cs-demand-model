@@ -6,9 +6,9 @@ This is the Python implementation of the Children's Social Care Demand Model.
 
 It can be used as a library, as a command line tool, or as part of a web application. 
 
-It is designed to be used within Pyodide and has a partnering front-end application here: 
+It can also be used within Pyodide and has a partnering front-end application here: 
 
-https://github.com/SocialFinanceDigitalLabs/csdmpy-frontend
+https://github.com/data-to-insight/cs-demand-model-web
 
 ## Principles
 
@@ -33,7 +33,7 @@ Want to get started straight away? You can install from the GitHub repo and run 
 
 ```bash
 
-pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=csdmpy[cli]'
+pip install 'cs-demand-model[cli]'
 
 ```
 
@@ -43,33 +43,33 @@ running from the command line.
 You can now view the command line options by running:
 
 ```bash
-python -m cs_demand_model
+demand-model
 ````
 
 For example, you can run a quick predictive model using a sample dataset with:
 
 ```bash
-python -m cs_demand_model predict sample://v1.zip
+demand-model predict sample://v1.zip
 ```
 
 In this case we have used a sample dataset, but you can also use a local folder by specifying the path to the folder:
 
 ```bash
-python -m cs_demand_model predict path/to/my/folder
+demand-model predict path/to/my/folder
 ```
 
 The folder currently needs to have quite a specific structure with sub-folders for each year. You can make
 sure your folder is read correctly by running:
 
 ```bash
- python -m cs_demand_model list-files sample://v1.zip 
+ demand-model list-files sample://v1.zip 
 ```
 (obviously replacing the path with your own)
 
 You can get more information about passing options to the command line tool by adding `--help` after the command, e.g.
 
 ```bash
-python -m cs_demand_model analyse --help
+demand-model analyse --help
 ```
 
 ## Launching with Jupyter
@@ -77,13 +77,13 @@ python -m cs_demand_model analyse --help
 You can also launch the model with Jupyter. Install the library with the jupyter extension:
 
 ```bash 
-pip install 'git+https://github.com/SocialFinanceDigitalLabs/csdm-py#egg=cs-demand-model[jupyter]'
+pip install 'cs-demand-model[jupyter]'
 ```
 
 Then launch Jupyter:
 
 ```bash
-jupyter-labs
+jupyter-lab
 ```
 (or `jupyter notebook` if you prefer)
 
@@ -93,6 +93,9 @@ You can also launch the model on [Binder][binder].
 [Click to launch][launch] the [sample repository][sample-repo] on binder.
 
 
-[launch]: https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/csdmpy-binder/HEAD?labpath=start-here.ipynb
+[launch]: https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb
 [binder]: https://mybinder.org
-[sample-repo]: https://github.com/SocialFinanceDigitalLabs/csdmpy-binder
+[sample-repo]: https://github.com/SocialFinanceDigitalLabs/cs-demand-model-binder
+
+https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb)
