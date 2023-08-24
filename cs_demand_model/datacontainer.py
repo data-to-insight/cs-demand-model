@@ -39,8 +39,6 @@ class DemandModellingDataContainer:
             ]:
                 self.__file_info.append(file_info)
 
-        print("Created datastore with", self.__file_info)
-
     @property
     def file_info(self):
         return self.__file_info
@@ -117,7 +115,6 @@ class DemandModellingDataContainer:
         self, table_type: TableType
     ) -> Generator[pd.DataFrame, None, None]:
         for info in self.__file_info:
-            print("INFO", info)
             if info.metadata.table == table_type:
                 yield self.__datastore.to_dataframe(info)
 
