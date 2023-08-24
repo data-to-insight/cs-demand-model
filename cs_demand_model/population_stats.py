@@ -107,63 +107,6 @@ class PopulationStats:
         return transition_rates
 
     @lru_cache(maxsize=5)
-    def summed_rates(self, start_date: date, end_date: date):
-        rates = self.raw_transition_rates(start_date, end_date)
-
-        # Exclude self transitions
-        rates = rates[
-            ~rates.index.isin(self.__config.transitions(other_transitions=False))
-        ]
-
-        # Now sum the remaining rates
-        rates = rates.reset_index().groupby(["age_bin", "placement_type"]).sum()
-        return rates.transition_rate
-
-    @lru_cache(maxsize=5)
-    def remain_rates(self, start_date: date, end_date: date):
-        summed = pd.DataFrame(self.summed_rates(start_date, end_date))
-
-        # Calculate the residual rate that should be the 'remain' rate
-        summed["residual"] = 1 - summed.transition_rate
-
-        # Transfer these to the 'self' category
-        summed = summed.reset_index()
-        summed["placement_type_after"] = summed.placement_type
-
-        # Add index back
-        summed = summed.set_index(["age_bin", "placement_type", "placement_type_after"])
-
-        return summed.residual
-
-    @lru_cache(maxsize=5)
-    def transition_rates(
-        self, start_date: date, end_date: date, include_not_in_care=False
-    ):
-        """
-        The transition rates are the rates of transitions between placement types for each age bin. They include
-        the calculated rates, as well as the 'remain' rate which is the rate of remaining in the same placement,
-        not including those who leave the system.
-        """
-        transition_rates = self.raw_transition_rates(start_date, end_date)
-        remain_rates = self.remain_rates(start_date, end_date)
-
-        merged_rates = pd.concat([transition_rates, remain_rates], axis=1)
-
-        merged_rates["merged"] = np.where(
-            merged_rates.residual.isnull(),
-            merged_rates.transition_rate,
-            merged_rates.residual,
-        )
-
-        merged_rates = merged_rates.merged
-        merged_rates.name = "transition_rate"
-
-        if not include_not_in_care:
-            merged_rates = merged_rates.loc[self.__config.transitions(as_index=True)]
-
-        return merged_rates
-
-    @lru_cache(maxsize=5)
     def daily_entrants(self, start_date: date, end_date: date) -> pd.Series:
         """
         Returns the number of entrants and the daily_probability of entrants for each age bracket and placement type.
