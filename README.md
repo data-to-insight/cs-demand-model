@@ -87,6 +87,18 @@ jupyter-lab
 ```
 (or `jupyter notebook` if you prefer)
 
+
+## Launching with Jupyter-Lite (Pyodide)
+
+Using Jupyter-Lite you can run the model in the browser without installing anything. This is a great way to get started quickly, and you can also analyse sensitive data without having to share it with 3rd parties.
+
+We have a custom build of jupyter-lite that includes the model. 
+
+You can try it from here:
+
+https://sfdl.org.uk/cs-demand-model-jupyter-lite/
+
+
 ## Launching on Binder
 
 You can also launch the model on [Binder][binder]. 
@@ -96,6 +108,3 @@ You can also launch the model on [Binder][binder].
 [launch]: https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb
 [binder]: https://mybinder.org
 [sample-repo]: https://github.com/SocialFinanceDigitalLabs/cs-demand-model-binder
-
-https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb)
