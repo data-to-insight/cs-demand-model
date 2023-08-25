@@ -6,8 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 class PlacementCategoriesMeta(EnumMeta):
-    def __new__(mcs, name, bases, dct):
-        cls = super().__new__(mcs, name, bases, dct)
+    def __new__(mcs, name, bases, dct, **kwargs):
+        cls = super().__new__(mcs, name, bases, dct, **kwargs)
 
         cls.__labels = {p.label: p for p in cls}
 
