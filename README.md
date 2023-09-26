@@ -15,12 +15,26 @@ https://github.com/data-to-insight/cs-demand-model-web
 The model is designed to run of the SSDA903 returns, and requires several years' worth of 
 data to be able to build a model for the system behaviour. 
 
+To create the model we take the standard SSDA903 Headers and Episodes files and merge several years
+of these to create a single dataset. This dataset is then analysed to give a longitudinal view of the
+children's experience within the system. Most notably we look at transfers between different types of
+placement categories (fostering, residential etc.), as well as grouping the children by age. 
+
+We then build a [Stock and Flow][stock-and-flow] model of the system. We use the episode start and end 
+dates to calculate the number of children in care at any given stage (stock), and when one episode ends and 
+another begins, we look at the type of placement the children transfer between (flow), also taking into account
+new children entering the system, as well as children leaving care, either returning home or ageing out of the system. 
+
+You can read more about the [Data Analysis](./docs/data-analysis.ipynb) and how the data is transformed
+and analysed.
+
+## Technical Components
+
 Model components:
 
 * [Configuration](./docs/configuration.ipynb) - How to configure the tool
 * [File Loader](./docs/file-loader.ipynb) - How to load files into the tool
 * [Data Container](./docs/data-container.ipynb) - How we enrich and access the data from the model
-* [Data Analysis](./docs/data-analysis.ipynb) - The key calculations required by the predictive model
 * [Predictor](./docs/predict.ipynb) - takes the model and uses it to predict the number of children in care at a given point in time.
 
 The components are designed to be re-usable and extensible. 
@@ -108,3 +122,4 @@ You can also launch the model on [Binder][binder].
 [launch]: https://mybinder.org/v2/gh/SocialFinanceDigitalLabs/cs-demand-model-binder/HEAD?labpath=start-here.ipynb
 [binder]: https://mybinder.org
 [sample-repo]: https://github.com/SocialFinanceDigitalLabs/cs-demand-model-binder
+[stock-and-flow]: https://en.wikipedia.org/wiki/Stock_and_flow
