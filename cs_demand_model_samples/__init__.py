@@ -16,4 +16,3 @@ class __FSProxy:
 
 
 V1 = __FSProxy("sample://v1.zip")
-V2 = __FSProxy("ftp://localhost:2121/dist/v1.zip")
